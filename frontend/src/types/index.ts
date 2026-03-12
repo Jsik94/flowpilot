@@ -141,3 +141,9 @@ export type AnalysisIssue = {
   target: string;
   summary: string;
 };
+
+export type AnalysisResult = {
+  source: 'gemini' | 'heuristic';
+  summary: string;
+  issues: AnalysisIssue[];
+};

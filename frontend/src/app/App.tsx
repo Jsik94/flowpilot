@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AnalysisPanel } from '../features/analysis/components/analysis-panel';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
 import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
+import { analyzeWorkflow } from '../lib/analyze';
 import {
   fetchRunJobs,
   fetchBranches,
@@ -17,6 +19,7 @@ import { applyRunJobsToWorkflowGraph } from '../lib/workflow-execution';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
 import { buildWorkflowMap } from '../lib/workflow-map';
 import type {
+  AnalysisResult,
   BranchSummary,
   RepositoryFormState,
   RepositoryRef,
@@ -56,6 +59,9 @@ export function App() {
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressState, setProgressState] = useState<{
     label: string;
@@ -106,10 +112,7 @@ export function App() {
         return;
       }
 
-      setSelectedWorkflowId('');
-      setSelectedPreview(null);
-      setWorkflowGraph(null);
-      setSelectedJobId('');
+      closeDetailDrawer();
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -126,6 +129,9 @@ export function App() {
     setWorkflowRuns([]);
     setSelectedRunId(null);
     setSelectedRunJobs([]);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setAnalysisLoading(false);
   }
 
   function persistFormState(nextState: RepositoryFormState) {
@@ -152,6 +158,8 @@ export function App() {
     }
 
     setRunLoading(true);
+    setAnalysisResult(null);
+    setAnalysisError(null);
 
     try {
       const runs = await fetchWorkflowRuns(repository, workflow.fileName, selectedBranch, formState.token);
@@ -339,10 +347,43 @@ export function App() {
     setSelectedRunId(runId);
     setSelectedRunJobs([]);
     setRunLoading(true);
+    setAnalysisResult(null);
+    setAnalysisError(null);
 
     void loadRunJobs(runId).finally(() => {
       setRunLoading(false);
     });
+  }
+
+  function handleAnalyzeWorkflow() {
+    if (!repository || !selectedPreview) {
+      return;
+    }
+
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+
+    void analyzeWorkflow({
+      repository: {
+        owner: repository.owner,
+        repo: repository.repo,
+      },
+      branch: selectedBranch,
+      preview: selectedPreview,
+      runs: workflowRuns,
+      runJobs: selectedRunJobs,
+    })
+      .then((result) => {
+        setAnalysisResult(result);
+      })
+      .catch((error: unknown) => {
+        setAnalysisError(
+          error instanceof Error ? error.message : 'AI 분석 요청에 실패했습니다.',
+        );
+      })
+      .finally(() => {
+        setAnalysisLoading(false);
+      });
   }
 
   return (
@@ -421,6 +462,15 @@ export function App() {
                     runs={workflowRuns}
                     selectedRunId={selectedRunId}
                     selectedRunJobs={selectedRunJobs}
+                  />
+                  <AnalysisPanel
+                    disabled={!selectedPreview}
+                    errorMessage={analysisError}
+                    issues={analysisResult?.issues ?? []}
+                    loading={analysisLoading}
+                    onAnalyze={handleAnalyzeWorkflow}
+                    source={analysisResult?.source ?? null}
+                    summary={analysisResult?.summary ?? null}
                   />
                   <JobDetailPanel
                     loading={workflowLoading}
