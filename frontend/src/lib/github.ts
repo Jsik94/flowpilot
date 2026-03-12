@@ -1,5 +1,6 @@
 import type {
   BranchSummary,
+  RepositoryEntry,
   RepositoryRef,
   RunJobSummary,
   RunStepSummary,
@@ -129,6 +130,14 @@ export function mapWorkflowItemsToSummaries(items: GitHubContentItem[]) {
       subtitle: `${item.path} · ${item.sha.slice(0, 7)}`,
       status: 'healthy',
     }));
+}
+
+export function mapRepositoryEntries(items: GitHubContentItem[]) {
+  return items.map<RepositoryEntry>((item) => ({
+    name: item.name,
+    path: item.path,
+    type: item.type,
+  }));
 }
 
 export function decodeGitHubFileContent(content: string, encoding: string) {
@@ -308,6 +317,21 @@ export async function fetchWorkflowSummaries(
   return mapWorkflowItemsToSummaries(response);
 }
 
+export async function fetchRepositoryEntries(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  path = '',
+  ref?: string,
+  token?: string,
+) {
+  const targetPath = path ? `/contents/${path}` : '/contents';
+  const response = await fetchGitHubJson<GitHubContentItem[]>(
+    appendRefQuery(`/repos/${repoRef.owner}/${repoRef.repo}${targetPath}`, ref),
+    token,
+  );
+
+  return mapRepositoryEntries(response);
+}
+
 export async function fetchWorkflowPreview(
   repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
   path: string,
@@ -323,6 +347,37 @@ export async function fetchWorkflowPreview(
   );
 
   return buildWorkflowPreview(response);
+}
+
+export async function fetchRepositoryFileText(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  path: string,
+  ref?: string,
+  token?: string,
+) {
+  const response = await fetchGitHubJson<GitHubFileResponse>(
+    appendRefQuery(`/repos/${repoRef.owner}/${repoRef.repo}/contents/${path}`, ref),
+    token,
+  );
+
+  return decodeGitHubFileContent(response.content, response.encoding);
+}
+
+export async function fetchOptionalRepositoryFileText(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  path: string,
+  ref?: string,
+  token?: string,
+) {
+  try {
+    return await fetchRepositoryFileText(repoRef, path, ref, token);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('404')) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function fetchWorkflowRuns(

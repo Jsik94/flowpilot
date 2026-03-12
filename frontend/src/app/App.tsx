@@ -3,24 +3,30 @@ import { AnalysisPanel } from '../features/analysis/components/analysis-panel';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
+import { ReviewReportPanel } from '../features/review/components/review-report-panel';
 import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
 import { analyzeWorkflow } from '../lib/analyze';
 import {
   fetchRunJobs,
   fetchBranches,
+  fetchOptionalRepositoryFileText,
   fetchRepository,
+  fetchRepositoryEntries,
   fetchWorkflowPreview,
   fetchWorkflowRuns,
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
+import { buildBranchComparison, buildRepoInsight, buildReviewMarkdown } from '../lib/repo-insights';
 import { applyRunJobsToWorkflowGraph } from '../lib/workflow-execution';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
 import { buildWorkflowMap } from '../lib/workflow-map';
 import type {
   AnalysisResult,
+  BranchComparison,
   BranchSummary,
+  RepoInsight,
   RepositoryFormState,
   RepositoryRef,
   RunJobSummary,
@@ -62,6 +68,8 @@ export function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [repoInsight, setRepoInsight] = useState<RepoInsight | null>(null);
+  const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressState, setProgressState] = useState<{
     label: string;
@@ -137,6 +145,27 @@ export function App() {
   function persistFormState(nextState: RepositoryFormState) {
     setFormState(nextState);
     window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextState));
+  }
+
+  async function loadRepositoryContext(
+    repoRef: RepositoryRef,
+    branch: string,
+    token: string,
+    currentWorkflows: WorkflowSummary[],
+  ) {
+    const [entries, packageJsonText, readmeText, defaultBranchWorkflows] = await Promise.all([
+      fetchRepositoryEntries(repoRef, '', branch, token),
+      fetchOptionalRepositoryFileText(repoRef, 'package.json', branch, token),
+      fetchOptionalRepositoryFileText(repoRef, 'README.md', branch, token),
+      branch === repoRef.defaultBranch
+        ? Promise.resolve(currentWorkflows)
+        : fetchWorkflowSummaries(repoRef, repoRef.defaultBranch, token),
+    ]);
+
+    setRepoInsight(buildRepoInsight(entries, packageJsonText, readmeText));
+    setBranchComparison(
+      buildBranchComparison(branch, repoRef.defaultBranch, currentWorkflows, defaultBranchWorkflows),
+    );
   }
 
   async function loadRunJobs(runId: number) {
@@ -227,6 +256,7 @@ export function App() {
     try {
       const summaries = await fetchWorkflowSummaries(repoRef, branch, token);
       setWorkflowItems(summaries);
+      await loadRepositoryContext(repoRef, branch, token, summaries);
 
       if (summaries.length === 0) {
         closeDetailDrawer();
@@ -271,6 +301,8 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
+      setRepoInsight(null);
+      setBranchComparison(null);
       closeDetailDrawer();
     } finally {
       setWorkflowLoading(false);
@@ -308,6 +340,8 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
+      setRepoInsight(null);
+      setBranchComparison(null);
       closeDetailDrawer();
     } finally {
       setRepositoryLoading(false);
@@ -386,6 +420,31 @@ export function App() {
       });
   }
 
+  function handleExportMarkdown() {
+    if (!repository || !selectedPreview) {
+      return;
+    }
+
+    const markdown = buildReviewMarkdown({
+      repository,
+      selectedBranch,
+      preview: selectedPreview,
+      workflowGraph: hydratedWorkflowGraph,
+      repoInsight,
+      branchComparison,
+      runs: workflowRuns,
+      analysisResult,
+    });
+
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedPreview.fileName.replace(/\.(ya?ml)$/i, '')}-review.md`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="app-shell">
       <div className="background-grid" />
@@ -449,6 +508,19 @@ export function App() {
                 </div>
 
                 <div className="detail-workspace-grid">
+                  {repository ? (
+                    <ReviewReportPanel
+                      analysisResult={analysisResult}
+                      branchComparison={branchComparison}
+                      onExportMarkdown={handleExportMarkdown}
+                      preview={selectedPreview}
+                      repoInsight={repoInsight}
+                      repository={repository}
+                      runs={workflowRuns}
+                      selectedBranch={selectedBranch}
+                      workflowGraph={hydratedWorkflowGraph}
+                    />
+                  ) : null}
                   <GraphCanvas
                     graph={hydratedWorkflowGraph}
                     loading={workflowLoading || runLoading}

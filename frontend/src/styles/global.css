@@ -322,6 +322,7 @@ select {
 .timeline-panel,
 .detail-panel,
 .graph-panel,
+.report-panel,
 .map-overview-panel,
 .detail-placeholder-panel {
   padding: 22px;
@@ -688,6 +689,36 @@ select {
   background: var(--item-bg);
 }
 
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.report-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--item-border);
+  background: var(--item-bg);
+}
+
+.report-card strong {
+  display: block;
+  margin-top: 8px;
+}
+
+.report-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.report-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--divider);
+}
+
 .issue-critical {
   border-color: rgba(255, 111, 125, 0.22);
 }
@@ -845,6 +876,10 @@ select {
   }
 
   .graph-lanes {
+    grid-template-columns: 1fr;
+  }
+
+  .report-grid {
     grid-template-columns: 1fr;
   }
 

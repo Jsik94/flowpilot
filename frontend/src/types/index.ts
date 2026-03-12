@@ -17,6 +17,12 @@ export type RepositoryRef = {
   defaultBranch: string;
 };
 
+export type RepositoryEntry = {
+  name: string;
+  path: string;
+  type: 'file' | 'dir' | 'symlink' | 'submodule';
+};
+
 export type BranchSummary = {
   name: string;
   sha: string;
@@ -146,4 +152,21 @@ export type AnalysisResult = {
   source: 'gemini' | 'heuristic';
   summary: string;
   issues: AnalysisIssue[];
+};
+
+export type RepoInsight = {
+  summary: string;
+  frameworks: string[];
+  keyFiles: string[];
+  deploymentSignals: string[];
+  confidence: 'high' | 'medium' | 'low';
+};
+
+export type BranchComparison = {
+  baseBranch: string;
+  currentBranch: string;
+  addedWorkflows: string[];
+  removedWorkflows: string[];
+  unchangedCount: number;
+  summary: string;
 };
