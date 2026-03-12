@@ -89,7 +89,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -217,6 +218,37 @@ select {
   padding: 14px 16px;
   background: var(--input-bg);
   color: var(--text);
+}
+
+.recommend-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.recommend-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.recommend-form span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.recommend-form select,
+.recommend-form textarea {
+  width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.recommend-textarea textarea {
+  min-height: 132px;
+  resize: vertical;
 }
 
 .branch-row {

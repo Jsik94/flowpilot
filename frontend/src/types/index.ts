@@ -170,3 +170,18 @@ export type BranchComparison = {
   unchangedCount: number;
   summary: string;
 };
+
+export type RecommendationSuggestion = {
+  id: string;
+  title: string;
+  target: string;
+  reason: string;
+  pseudoDiff: string;
+  confidence: 'high' | 'medium' | 'low';
+};
+
+export type RecommendationResult = {
+  source: 'gemini' | 'heuristic';
+  summary: string;
+  suggestions: RecommendationSuggestion[];
+};

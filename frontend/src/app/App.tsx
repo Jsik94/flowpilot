@@ -3,6 +3,7 @@ import { AnalysisPanel } from '../features/analysis/components/analysis-panel';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
+import { ChangeRequestPanel } from '../features/recommend/components/change-request-panel';
 import { ReviewReportPanel } from '../features/review/components/review-report-panel';
 import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
@@ -18,6 +19,7 @@ import {
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
+import { recommendWorkflowChange } from '../lib/recommend';
 import { buildBranchComparison, buildRepoInsight, buildReviewMarkdown } from '../lib/repo-insights';
 import { applyRunJobsToWorkflowGraph } from '../lib/workflow-execution';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
@@ -26,6 +28,7 @@ import type {
   AnalysisResult,
   BranchComparison,
   BranchSummary,
+  RecommendationResult,
   RepoInsight,
   RepositoryFormState,
   RepositoryRef,
@@ -68,6 +71,11 @@ export function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [recommendTemplate, setRecommendTemplate] = useState('custom');
+  const [recommendDetails, setRecommendDetails] = useState('');
+  const [recommendationResult, setRecommendationResult] = useState<RecommendationResult | null>(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [repoInsight, setRepoInsight] = useState<RepoInsight | null>(null);
   const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -140,6 +148,11 @@ export function App() {
     setAnalysisResult(null);
     setAnalysisError(null);
     setAnalysisLoading(false);
+    setRecommendationResult(null);
+    setRecommendationError(null);
+    setRecommendationLoading(false);
+    setRecommendTemplate('custom');
+    setRecommendDetails('');
   }
 
   function persistFormState(nextState: RepositoryFormState) {
@@ -189,6 +202,8 @@ export function App() {
     setRunLoading(true);
     setAnalysisResult(null);
     setAnalysisError(null);
+    setRecommendationResult(null);
+    setRecommendationError(null);
 
     try {
       const runs = await fetchWorkflowRuns(repository, workflow.fileName, selectedBranch, formState.token);
@@ -383,6 +398,8 @@ export function App() {
     setRunLoading(true);
     setAnalysisResult(null);
     setAnalysisError(null);
+    setRecommendationResult(null);
+    setRecommendationError(null);
 
     void loadRunJobs(runId).finally(() => {
       setRunLoading(false);
@@ -417,6 +434,35 @@ export function App() {
       })
       .finally(() => {
         setAnalysisLoading(false);
+      });
+  }
+
+  function handleRecommendChange() {
+    if (!repository || !selectedPreview || !recommendDetails.trim()) {
+      return;
+    }
+
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+
+    void recommendWorkflowChange({
+      repository,
+      branch: selectedBranch,
+      preview: selectedPreview,
+      repoInsight,
+      template: recommendTemplate,
+      details: recommendDetails,
+    })
+      .then((result) => {
+        setRecommendationResult(result);
+      })
+      .catch((error: unknown) => {
+        setRecommendationError(
+          error instanceof Error ? error.message : '변경 위치 추천 요청에 실패했습니다.',
+        );
+      })
+      .finally(() => {
+        setRecommendationLoading(false);
       });
   }
 
@@ -543,6 +589,16 @@ export function App() {
                     onAnalyze={handleAnalyzeWorkflow}
                     source={analysisResult?.source ?? null}
                     summary={analysisResult?.summary ?? null}
+                  />
+                  <ChangeRequestPanel
+                    details={recommendDetails}
+                    errorMessage={recommendationError}
+                    loading={recommendationLoading}
+                    onDetailsChange={setRecommendDetails}
+                    onRecommend={handleRecommendChange}
+                    onTemplateChange={setRecommendTemplate}
+                    result={recommendationResult}
+                    template={recommendTemplate}
                   />
                   <JobDetailPanel
                     loading={workflowLoading}
