@@ -597,6 +597,10 @@ select {
   background: var(--warning);
 }
 
+.state-running .graph-card-line {
+  background: rgba(143, 184, 255, 0.88);
+}
+
 .dependency-list {
   display: grid;
   gap: 4px;
@@ -729,6 +733,13 @@ select {
 .step-flow-card strong {
   display: block;
   margin-top: 12px;
+}
+
+.step-flow-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .step-flow-card p {

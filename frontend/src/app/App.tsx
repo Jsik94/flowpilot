@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
@@ -13,6 +13,7 @@ import {
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
+import { applyRunJobsToWorkflowGraph } from '../lib/workflow-execution';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
 import { buildWorkflowMap } from '../lib/workflow-map';
 import type {
@@ -62,6 +63,14 @@ export function App() {
     total: number;
   } | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const selectedRun = workflowRuns.find((run) => run.id === selectedRunId) ?? null;
+  const hydratedWorkflowGraph = useMemo(
+    () =>
+      workflowGraph
+        ? applyRunJobsToWorkflowGraph(workflowGraph, selectedRunJobs)
+        : null,
+    [selectedRunJobs, workflowGraph],
+  );
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -400,9 +409,10 @@ export function App() {
 
                 <div className="detail-workspace-grid">
                   <GraphCanvas
-                    graph={workflowGraph}
-                    loading={workflowLoading}
+                    graph={hydratedWorkflowGraph}
+                    loading={workflowLoading || runLoading}
                     onSelectJob={setSelectedJobId}
+                    selectedRun={selectedRun}
                     selectedJobId={selectedJobId}
                   />
                   <RunHistoryPanel

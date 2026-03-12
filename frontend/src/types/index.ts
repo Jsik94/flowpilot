@@ -1,3 +1,5 @@
+export type ExecutionState = 'success' | 'failure' | 'running' | 'neutral';
+
 export type WorkflowSummary = {
   id: string;
   fileName: string;
@@ -40,7 +42,7 @@ export type GraphNode = {
   id: string;
   title: string;
   level: number;
-  state: 'success' | 'failure' | 'neutral';
+  state: ExecutionState;
   meta: string;
 };
 
@@ -55,6 +57,7 @@ export type WorkflowStep = {
   title: string;
   kind: 'run' | 'uses' | 'unknown';
   detail: string;
+  executionState?: ExecutionState;
 };
 
 export type WorkflowJob = {
@@ -99,20 +102,20 @@ export type RunSummary = {
   title: string;
   branch: string;
   event: string;
-  status: 'success' | 'failure' | 'running' | 'neutral';
+  status: ExecutionState;
   startedAt: string;
 };
 
 export type RunStepSummary = {
   number: number;
   name: string;
-  status: 'success' | 'failure' | 'running' | 'neutral';
+  status: ExecutionState;
 };
 
 export type RunJobSummary = {
   id: number;
   name: string;
-  status: 'success' | 'failure' | 'running' | 'neutral';
+  status: ExecutionState;
   startedAt: string;
   completedAt: string | null;
   steps: RunStepSummary[];
