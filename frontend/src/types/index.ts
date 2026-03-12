@@ -1,0 +1,120 @@
+export type WorkflowSummary = {
+  id: string;
+  fileName: string;
+  path: string;
+  sha: string;
+  subtitle: string;
+  status: 'healthy' | 'warning' | 'error';
+};
+
+export type RepositoryRef = {
+  owner: string;
+  repo: string;
+  fullName: string;
+  isPrivate: boolean;
+  defaultBranch: string;
+};
+
+export type BranchSummary = {
+  name: string;
+  sha: string;
+};
+
+export type RepositoryFormState = {
+  repoUrl: string;
+  username: string;
+  token: string;
+};
+
+export type WorkflowPreview = {
+  fileName: string;
+  path: string;
+  sha: string;
+  workflowName: string;
+  lineCount: number;
+  preview: string[];
+  content: string;
+};
+
+export type GraphNode = {
+  id: string;
+  title: string;
+  level: number;
+  state: 'success' | 'failure' | 'neutral';
+  meta: string;
+};
+
+export type GraphEdge = {
+  from: string;
+  to: string;
+  kind?: 'strong' | 'weak';
+};
+
+export type WorkflowStep = {
+  id: string;
+  title: string;
+  kind: 'run' | 'uses' | 'unknown';
+  detail: string;
+};
+
+export type WorkflowJob = {
+  id: string;
+  title: string;
+  runsOn: string;
+  needs: string[];
+  steps: WorkflowStep[];
+  level: number;
+};
+
+export type WorkflowGraph = {
+  workflowName: string;
+  jobs: WorkflowJob[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
+
+export type WorkflowMapNode = {
+  id: string;
+  fileName: string;
+  workflowName: string;
+  triggers: string[];
+  branchRules: string[];
+  level: number;
+  dependsOnWorkflowIds: string[];
+};
+
+export type WorkflowMap = {
+  nodes: WorkflowMapNode[];
+  edges: GraphEdge[];
+  strongEdges: GraphEdge[];
+  weakEdges: GraphEdge[];
+};
+
+export type RunSummary = {
+  id: number;
+  branch: string;
+  event: string;
+  status: 'success' | 'failure' | 'running';
+  startedAt: string;
+};
+
+export type JobDetail = {
+  id: string;
+  title: string;
+  runsOn: string;
+  needs: string[];
+  duration: string;
+  steps: Array<{
+    name: string;
+    duration: string;
+    state: 'success' | 'failure' | 'neutral';
+  }>;
+};
+
+export type AnalysisIssue = {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  target: string;
+  summary: string;
+};
