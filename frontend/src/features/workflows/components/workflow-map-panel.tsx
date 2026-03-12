@@ -82,6 +82,14 @@ export function WorkflowMapPanel({
     graph.d3Force('link')?.distance?.((link: ForceLink) =>
       link.kind === 'weak' ? 180 : 240,
     );
+    graph.d3Force('x')?.strength?.(0.1);
+    graph.d3Force('x')?.x?.((node: ForceNode) => {
+      const maxOrder = Math.max(1, ...map.nodes.map((item) => item.phaseOrder));
+      const segment = size.width / (maxOrder + 2);
+      return segment * (node.phaseOrder + 1);
+    });
+    graph.d3Force('y')?.strength?.(0.04);
+    graph.d3Force('y')?.y?.((node: ForceNode) => size.height / 2 + (node.level - 1) * 90);
 
     const alignToCenter = window.setTimeout(() => {
       graph.zoomToFit(500, 90);
@@ -110,6 +118,12 @@ export function WorkflowMapPanel({
           </button>
           {map ? <span className="badge">{map.nodes.length} workflows</span> : null}
         </div>
+      </div>
+
+      <div className="map-legend-row">
+        <span className="legend-chip legend-pre-merge">머지 전: PR / review 계열</span>
+        <span className="legend-chip legend-post-merge">머지 후: push / pipeline / release 계열</span>
+        <span className="legend-chip legend-manual">수동/기타: manual / schedule</span>
       </div>
 
       {loading ? <p className="empty-state">브랜치 기준으로 워크플로우를 스캔하는 중입니다.</p> : null}
@@ -142,15 +156,16 @@ export function WorkflowMapPanel({
               const isSelected = workflowNode.id === selectedId;
               const fontSize = Math.max(10, 15 / globalScale);
               const subFontSize = Math.max(8, 11 / globalScale);
+              const phaseColor = getPhaseColor(workflowNode.phaseLabel);
 
               ctx.save();
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, isSelected ? 8 : 5.5, 0, 2 * Math.PI, false);
-              ctx.fillStyle = isSelected ? '#5bd1a5' : '#d6deef';
+              ctx.fillStyle = isSelected ? '#5bd1a5' : phaseColor;
               ctx.shadowBlur = isSelected ? 22 : 12;
               ctx.shadowColor = isSelected
                 ? 'rgba(91, 209, 165, 0.58)'
-                : 'rgba(143, 184, 255, 0.24)';
+                : `${phaseColor}44`;
               ctx.fill();
               ctx.restore();
 
@@ -164,9 +179,32 @@ export function WorkflowMapPanel({
               ctx.fillStyle = 'rgba(153, 171, 198, 0.92)';
               ctx.fillText(fileName, node.x ?? 0, (node.y ?? 0) + 34);
             }}
+            nodePointerAreaPaint={(node, color, ctx, globalScale) => {
+              const workflowNode = node as ForceNode;
+              const label = workflowNode.workflowName;
+              const fileName = workflowNode.fileName;
+              const x = node.x ?? 0;
+              const y = node.y ?? 0;
+              const fontSize = Math.max(10, 15 / globalScale);
+              const subFontSize = Math.max(8, 11 / globalScale);
+
+              ctx.fillStyle = color;
+              ctx.beginPath();
+              ctx.arc(x, y, 11, 0, 2 * Math.PI, false);
+              ctx.fill();
+
+              ctx.font = `600 ${fontSize}px "Avenir Next", sans-serif`;
+              const labelWidth = ctx.measureText(label).width;
+              ctx.font = `400 ${subFontSize}px "Avenir Next", sans-serif`;
+              const fileWidth = ctx.measureText(fileName).width;
+              const hitWidth = Math.max(labelWidth, fileWidth) + 18;
+              const hitHeight = fontSize + subFontSize + 18;
+
+              ctx.fillRect(x - hitWidth / 2, y + 8, hitWidth, hitHeight);
+            }}
             nodeLabel={(node) => {
               const workflowNode = node as ForceNode;
-              return `${workflowNode.workflowName}\n${workflowNode.fileName}\n${workflowNode.triggers.join(', ')}`;
+              return `${workflowNode.workflowName}\n${getMergeMarkerLabel(workflowNode.phaseLabel)}\n${workflowNode.fileName}\n${workflowNode.triggers.join(', ')}`;
             }}
             nodeRelSize={6}
             onNodeClick={(node) => {
@@ -187,4 +225,35 @@ export function WorkflowMapPanel({
       </div>
     </section>
   );
+}
+
+function getPhaseColor(phaseLabel: string) {
+  switch (phaseLabel) {
+    case 'PR':
+      return '#8fb8ff';
+    case 'Push':
+      return '#ffd881';
+    case 'Pipeline':
+      return '#5bd1a5';
+    case 'Release':
+      return '#ff9aa6';
+    case 'Manual':
+    case 'Schedule':
+      return '#d6deef';
+    default:
+      return '#b8d2ff';
+  }
+}
+
+function getMergeMarkerLabel(phaseLabel: string) {
+  switch (phaseLabel) {
+    case 'PR':
+      return '머지 전';
+    case 'Push':
+    case 'Pipeline':
+    case 'Release':
+      return '머지 후';
+    default:
+      return '수동/기타';
+  }
 }

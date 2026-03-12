@@ -1,6 +1,9 @@
 import type {
   BranchSummary,
   RepositoryRef,
+  RunJobSummary,
+  RunStepSummary,
+  RunSummary,
   WorkflowPreview,
   WorkflowSummary,
 } from '../types';
@@ -35,6 +38,37 @@ type GitHubFileResponse = {
   sha: string;
   content: string;
   encoding: 'base64' | string;
+};
+
+type GitHubWorkflowRunsResponse = {
+  workflow_runs: Array<{
+    id: number;
+    run_number: number;
+    display_title?: string;
+    name?: string;
+    head_branch: string;
+    event: string;
+    status: string;
+    conclusion: string | null;
+    created_at: string;
+  }>;
+};
+
+type GitHubRunJobsResponse = {
+  jobs: Array<{
+    id: number;
+    name: string;
+    status: string;
+    conclusion: string | null;
+    started_at: string;
+    completed_at: string | null;
+    steps?: Array<{
+      number: number;
+      name: string;
+      status: string;
+      conclusion: string | null;
+    }>;
+  }>;
 };
 
 const GITHUB_API_BASE_URL = 'https://api.github.com';
@@ -145,6 +179,56 @@ export function appendRefQuery(path: string, ref?: string) {
   return `${path}${separator}ref=${encodeURIComponent(ref)}`;
 }
 
+export function mapWorkflowRunsToSummaries(runs: GitHubWorkflowRunsResponse['workflow_runs']) {
+  return runs.map<RunSummary>((run) => ({
+    id: run.id,
+    runNumber: run.run_number,
+    title: run.display_title || run.name || `Run #${run.run_number}`,
+    branch: run.head_branch,
+    event: run.event,
+    status: mapExecutionState(run.status, run.conclusion),
+    startedAt: run.created_at,
+  }));
+}
+
+export function mapRunJobsToSummaries(jobs: GitHubRunJobsResponse['jobs']) {
+  return jobs.map<RunJobSummary>((job) => ({
+    id: job.id,
+    name: job.name,
+    status: mapExecutionState(job.status, job.conclusion),
+    startedAt: job.started_at,
+    completedAt: job.completed_at,
+    steps: (job.steps ?? []).map<RunStepSummary>((step) => ({
+      number: step.number,
+      name: step.name,
+      status: mapExecutionState(step.status, step.conclusion),
+    })),
+  }));
+}
+
+export function mapExecutionState(status?: string | null, conclusion?: string | null) {
+  if (status && status !== 'completed') {
+    return 'running' as const;
+  }
+
+  switch (conclusion) {
+    case 'success':
+      return 'success' as const;
+    case 'failure':
+    case 'timed_out':
+    case 'cancelled':
+    case 'action_required':
+    case 'startup_failure':
+    case 'stale':
+      return 'failure' as const;
+    case 'skipped':
+    case 'neutral':
+      return 'neutral' as const;
+    default:
+      return 'neutral' as const;
+  }
+}
+
 function createGitHubHeaders(token?: string) {
   return {
     Accept: 'application/vnd.github+json',
@@ -239,4 +323,31 @@ export async function fetchWorkflowPreview(
   );
 
   return buildWorkflowPreview(response);
+}
+
+export async function fetchWorkflowRuns(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  workflowFileName: string,
+  branch: string,
+  token?: string,
+) {
+  const response = await fetchGitHubJson<GitHubWorkflowRunsResponse>(
+    `/repos/${repoRef.owner}/${repoRef.repo}/actions/workflows/${encodeURIComponent(workflowFileName)}/runs?branch=${encodeURIComponent(branch)}&per_page=10`,
+    token,
+  );
+
+  return mapWorkflowRunsToSummaries(response.workflow_runs);
+}
+
+export async function fetchRunJobs(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  runId: number,
+  token?: string,
+) {
+  const response = await fetchGitHubJson<GitHubRunJobsResponse>(
+    `/repos/${repoRef.owner}/${repoRef.repo}/actions/runs/${runId}/jobs?per_page=100`,
+    token,
+  );
+
+  return mapRunJobsToSummaries(response.jobs);
 }

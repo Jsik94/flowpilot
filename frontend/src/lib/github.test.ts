@@ -4,7 +4,10 @@ import {
   appendRefQuery,
   buildWorkflowPreview,
   decodeGitHubFileContent,
+  mapExecutionState,
+  mapRunJobsToSummaries,
   mapWorkflowItemsToSummaries,
+  mapWorkflowRunsToSummaries,
   parseRepositoryUrl,
 } from './github';
 
@@ -85,4 +88,68 @@ test('appendRefQuery adds encoded branch ref to github contents path', () => {
     path,
     '/repos/octocat/hello-world/contents/.github/workflows?ref=feat%2Fgraph',
   );
+});
+
+test('mapWorkflowRunsToSummaries maps GitHub run status into UI status', () => {
+  const runs = mapWorkflowRunsToSummaries([
+    {
+      id: 101,
+      run_number: 21,
+      display_title: 'Fix cache key',
+      head_branch: 'main',
+      event: 'push',
+      status: 'completed',
+      conclusion: 'success',
+      created_at: '2026-03-13T10:00:00Z',
+    },
+    {
+      id: 102,
+      run_number: 22,
+      name: 'CI',
+      head_branch: 'main',
+      event: 'workflow_dispatch',
+      status: 'in_progress',
+      conclusion: null,
+      created_at: '2026-03-13T10:05:00Z',
+    },
+  ]);
+
+  assert.equal(runs[0]?.title, 'Fix cache key');
+  assert.equal(runs[0]?.status, 'success');
+  assert.equal(runs[1]?.title, 'CI');
+  assert.equal(runs[1]?.status, 'running');
+});
+
+test('mapRunJobsToSummaries maps jobs and step execution states', () => {
+  const jobs = mapRunJobsToSummaries([
+    {
+      id: 9001,
+      name: 'build',
+      status: 'completed',
+      conclusion: 'failure',
+      started_at: '2026-03-13T10:00:00Z',
+      completed_at: '2026-03-13T10:02:00Z',
+      steps: [
+        {
+          number: 1,
+          name: 'Checkout',
+          status: 'completed',
+          conclusion: 'success',
+        },
+        {
+          number: 2,
+          name: 'Install',
+          status: 'completed',
+          conclusion: 'failure',
+        },
+      ],
+    },
+  ]);
+
+  assert.equal(jobs[0]?.status, 'failure');
+  assert.deepEqual(jobs[0]?.steps.map((step) => step.status), ['success', 'failure']);
+});
+
+test('mapExecutionState falls back to neutral for skipped executions', () => {
+  assert.equal(mapExecutionState('completed', 'skipped'), 'neutral');
 });

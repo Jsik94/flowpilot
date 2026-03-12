@@ -22,6 +22,8 @@ export function buildWorkflowMap(previews: WorkflowPreview[]) {
     workflowName: meta.workflowName,
     triggers: meta.triggers,
     branchRules: meta.branchRules,
+    primaryTrigger: getPrimaryTrigger(meta.triggers),
+    ...getWorkflowPhase(meta.triggers),
     level: 0,
     dependsOnWorkflowIds: meta.workflowRunTargets
       .map((targetName) => nameToId.get(targetName))
@@ -289,6 +291,34 @@ function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
 
 function toEdgeKey(from: string, to: string) {
   return `${from}::${to}`;
+}
+
+function getPrimaryTrigger(triggers: string[]) {
+  return triggers[0] ?? 'unknown';
+}
+
+function getWorkflowPhase(triggers: string[]) {
+  const primaryTrigger = getPrimaryTrigger(triggers);
+
+  switch (primaryTrigger) {
+    case 'pull_request':
+    case 'pull_request_target':
+    case 'merge_group':
+      return { phaseLabel: 'PR', phaseOrder: 0 };
+    case 'push':
+      return { phaseLabel: 'Push', phaseOrder: 1 };
+    case 'workflow_run':
+    case 'workflow_call':
+      return { phaseLabel: 'Pipeline', phaseOrder: 2 };
+    case 'release':
+      return { phaseLabel: 'Release', phaseOrder: 3 };
+    case 'workflow_dispatch':
+      return { phaseLabel: 'Manual', phaseOrder: 4 };
+    case 'schedule':
+      return { phaseLabel: 'Schedule', phaseOrder: 5 };
+    default:
+      return { phaseLabel: 'Other', phaseOrder: 6 };
+  }
 }
 
 function findBlockEnd(lines: string[], startIndex: number, parentIndent: number) {

@@ -38,6 +38,8 @@ export const graphNodes: GraphNode[] = [
 export const runs: RunSummary[] = [
   {
     id: 1520,
+    runNumber: 1520,
+    title: 'Deploy pipeline failed on main',
     branch: 'main',
     event: 'push',
     status: 'failure',
@@ -45,6 +47,8 @@ export const runs: RunSummary[] = [
   },
   {
     id: 1519,
+    runNumber: 1519,
+    title: 'CI passed on main',
     branch: 'main',
     event: 'push',
     status: 'success',
@@ -52,6 +56,8 @@ export const runs: RunSummary[] = [
   },
   {
     id: 1518,
+    runNumber: 1518,
+    title: 'PR checks in progress',
     branch: 'feat/graph',
     event: 'pull_request',
     status: 'running',

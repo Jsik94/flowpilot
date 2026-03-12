@@ -61,6 +61,14 @@ jobs:
   ]);
 
   assert.equal(map.nodes.length, 2);
+  assert.equal(
+    map.nodes.find((node) => node.fileName === 'ci.yml')?.phaseLabel,
+    'Push',
+  );
+  assert.equal(
+    map.nodes.find((node) => node.fileName === 'deploy.yml')?.phaseLabel,
+    'Pipeline',
+  );
   assert.deepEqual(map.edges, [
     {
       from: '.github/workflows/ci.yml',
@@ -74,6 +82,32 @@ jobs:
   );
   assert.equal(map.strongEdges.length, 1);
   assert.equal(map.weakEdges.length, 0);
+});
+
+test('buildWorkflowMap assigns review phase for pull request workflows', () => {
+  const map = buildWorkflowMap([
+    {
+      fileName: 'pr.yml',
+      path: '.github/workflows/pr.yml',
+      sha: '1111111',
+      workflowName: 'PR Pipeline',
+      lineCount: 4,
+      preview: [],
+      content: `
+name: PR Pipeline
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  review:
+    runs-on: ubuntu-latest
+`,
+    },
+  ]);
+
+  assert.equal(map.nodes[0]?.phaseLabel, 'PR');
+  assert.equal(map.nodes[0]?.phaseOrder, 0);
 });
 
 test('buildWorkflowMap creates weak edges for same trigger and branch rule', () => {

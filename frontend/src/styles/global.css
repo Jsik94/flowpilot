@@ -456,6 +456,39 @@ select {
   font-size: 0.82rem;
 }
 
+.map-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--item-border);
+  background: var(--item-bg);
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.legend-pre-merge {
+  border-color: rgba(143, 184, 255, 0.32);
+  color: #b8d2ff;
+}
+
+.legend-post-merge {
+  border-color: rgba(91, 209, 165, 0.32);
+  color: #89ffdb;
+}
+
+.legend-manual {
+  border-color: rgba(214, 222, 239, 0.22);
+}
+
 .map-panel-actions {
   display: flex;
   align-items: center;
@@ -733,6 +766,17 @@ select {
   transform: translateX(100%);
   transition: transform 180ms ease;
   pointer-events: none;
+}
+
+.detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  border: 0;
+  padding: 0;
+  background: rgba(2, 9, 17, 0.18);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
 }
 
 .detail-drawer.is-open {

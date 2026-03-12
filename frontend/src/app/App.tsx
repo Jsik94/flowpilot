@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
+import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
 import {
+  fetchRunJobs,
   fetchBranches,
   fetchRepository,
   fetchWorkflowPreview,
+  fetchWorkflowRuns,
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
@@ -16,6 +19,8 @@ import type {
   BranchSummary,
   RepositoryFormState,
   RepositoryRef,
+  RunJobSummary,
+  RunSummary,
   WorkflowMap,
   WorkflowGraph,
   WorkflowPreview,
@@ -43,9 +48,13 @@ export function App() {
   const [selectedPreview, setSelectedPreview] = useState<WorkflowPreview | null>(null);
   const [workflowGraph, setWorkflowGraph] = useState<WorkflowGraph | null>(null);
   const [selectedJobId, setSelectedJobId] = useState('');
+  const [workflowRuns, setWorkflowRuns] = useState<RunSummary[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [selectedRunJobs, setSelectedRunJobs] = useState<RunJobSummary[]>([]);
   const [showWeakLinks, setShowWeakLinks] = useState(true);
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [runLoading, setRunLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressState, setProgressState] = useState<{
     label: string;
@@ -100,12 +109,69 @@ export function App() {
     };
   }, [selectedWorkflowId]);
 
+  function closeDetailDrawer() {
+    setSelectedWorkflowId('');
+    setSelectedPreview(null);
+    setWorkflowGraph(null);
+    setSelectedJobId('');
+    setWorkflowRuns([]);
+    setSelectedRunId(null);
+    setSelectedRunJobs([]);
+  }
+
   function persistFormState(nextState: RepositoryFormState) {
     setFormState(nextState);
     window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextState));
   }
 
-  function applySelectedWorkflow(
+  async function loadRunJobs(runId: number) {
+    if (!repository) {
+      setSelectedRunJobs([]);
+      return;
+    }
+
+    const jobs = await fetchRunJobs(repository, runId, formState.token);
+    setSelectedRunJobs(jobs);
+  }
+
+  async function loadWorkflowRunsForSelection(workflow: WorkflowSummary) {
+    if (!repository || !selectedBranch) {
+      setWorkflowRuns([]);
+      setSelectedRunId(null);
+      setSelectedRunJobs([]);
+      return;
+    }
+
+    setRunLoading(true);
+
+    try {
+      const runs = await fetchWorkflowRuns(repository, workflow.fileName, selectedBranch, formState.token);
+      setWorkflowRuns(runs);
+
+      const firstRun = runs[0] ?? null;
+      setSelectedRunId(firstRun?.id ?? null);
+
+      if (firstRun) {
+        await loadRunJobs(firstRun.id);
+      } else {
+        setSelectedRunJobs([]);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? mapLoadError(error.message)
+          : '실행 이력을 불러오지 못했습니다.';
+
+      setErrorMessage(message);
+      setWorkflowRuns([]);
+      setSelectedRunId(null);
+      setSelectedRunJobs([]);
+    } finally {
+      setRunLoading(false);
+    }
+  }
+
+  async function applySelectedWorkflow(
     workflowId: string,
     items: WorkflowSummary[],
     previews: Record<string, WorkflowPreview>,
@@ -123,6 +189,7 @@ export function App() {
     const graph = buildWorkflowGraph(preview.content, preview.workflowName);
     setWorkflowGraph(graph);
     setSelectedJobId(graph.jobs[0]?.id ?? '');
+    await loadWorkflowRunsForSelection(selected);
   }
 
   async function loadBranchWorkflows(
@@ -145,12 +212,9 @@ export function App() {
       setWorkflowItems(summaries);
 
       if (summaries.length === 0) {
-        setSelectedWorkflowId('');
-        setSelectedPreview(null);
-        setWorkflowGraph(null);
+        closeDetailDrawer();
         setWorkflowMap(null);
         setWorkflowPreviews({});
-        setSelectedJobId('');
         return;
       }
 
@@ -176,12 +240,9 @@ export function App() {
           : '';
 
       if (nextWorkflowId) {
-        applySelectedWorkflow(nextWorkflowId, summaries, previewMap);
+        await applySelectedWorkflow(nextWorkflowId, summaries, previewMap);
       } else {
-        setSelectedWorkflowId('');
-        setSelectedPreview(null);
-        setWorkflowGraph(null);
-        setSelectedJobId('');
+        closeDetailDrawer();
       }
     } catch (error) {
       const message =
@@ -193,10 +254,7 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
-      setSelectedWorkflowId('');
-      setSelectedPreview(null);
-      setWorkflowGraph(null);
-      setSelectedJobId('');
+      closeDetailDrawer();
     } finally {
       setWorkflowLoading(false);
       setProgressState(null);
@@ -206,8 +264,7 @@ export function App() {
   async function handleLoadRepository() {
     setRepositoryLoading(true);
     setErrorMessage(null);
-    setSelectedPreview(null);
-    setWorkflowGraph(null);
+    closeDetailDrawer();
 
     try {
       const parsed = parseRepositoryUrl(formState.repoUrl);
@@ -234,10 +291,7 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
-      setSelectedWorkflowId('');
-      setSelectedPreview(null);
-      setWorkflowGraph(null);
-      setSelectedJobId('');
+      closeDetailDrawer();
     } finally {
       setRepositoryLoading(false);
     }
@@ -248,7 +302,7 @@ export function App() {
       return;
     }
 
-    applySelectedWorkflow(
+    void applySelectedWorkflow(
       workflowId,
       workflowItems,
       workflowPreviews,
@@ -266,6 +320,20 @@ export function App() {
       formState.token,
       selectedWorkflowId || undefined,
     );
+  }
+
+  function handleSelectRun(runId: number) {
+    if (runId === selectedRunId) {
+      return;
+    }
+
+    setSelectedRunId(runId);
+    setSelectedRunJobs([]);
+    setRunLoading(true);
+
+    void loadRunJobs(runId).finally(() => {
+      setRunLoading(false);
+    });
   }
 
   return (
@@ -304,44 +372,54 @@ export function App() {
         />
 
         {selectedWorkflowId ? (
-          <aside
-            aria-label="workflow detail drawer"
-            className={`detail-drawer ${selectedWorkflowId ? 'is-open' : ''}`}
-          >
-            <div className="detail-workspace">
-              <div className="detail-workspace-header">
-                <div>
-                  <p className="eyebrow">Selected Workflow</p>
-                  <h2>{selectedPreview?.workflowName ?? 'Workflow detail'}</h2>
+          <>
+            <button
+              aria-label="Close detail drawer"
+              className="detail-backdrop"
+              onClick={closeDetailDrawer}
+              type="button"
+            />
+            <aside
+              aria-label="workflow detail drawer"
+              className={`detail-drawer ${selectedWorkflowId ? 'is-open' : ''}`}
+            >
+              <div className="detail-workspace">
+                <div className="detail-workspace-header">
+                  <div>
+                    <p className="eyebrow">Selected Workflow</p>
+                    <h2>{selectedPreview?.workflowName ?? 'Workflow detail'}</h2>
+                  </div>
+                  <button
+                    className="button button-secondary"
+                    onClick={closeDetailDrawer}
+                    type="button"
+                  >
+                    Close Detail
+                  </button>
                 </div>
-                <button
-                  className="button button-secondary"
-                  onClick={() => {
-                    setSelectedWorkflowId('');
-                    setSelectedPreview(null);
-                    setWorkflowGraph(null);
-                    setSelectedJobId('');
-                  }}
-                  type="button"
-                >
-                  Close Detail
-                </button>
-              </div>
 
-              <div className="detail-workspace-grid">
-                <GraphCanvas
-                  graph={workflowGraph}
-                  loading={workflowLoading}
-                  onSelectJob={setSelectedJobId}
-                  selectedJobId={selectedJobId}
-                />
-                <JobDetailPanel
-                  loading={workflowLoading}
-                  preview={selectedPreview}
-                />
+                <div className="detail-workspace-grid">
+                  <GraphCanvas
+                    graph={workflowGraph}
+                    loading={workflowLoading}
+                    onSelectJob={setSelectedJobId}
+                    selectedJobId={selectedJobId}
+                  />
+                  <RunHistoryPanel
+                    loading={runLoading}
+                    onSelectRun={handleSelectRun}
+                    runs={workflowRuns}
+                    selectedRunId={selectedRunId}
+                    selectedRunJobs={selectedRunJobs}
+                  />
+                  <JobDetailPanel
+                    loading={workflowLoading}
+                    preview={selectedPreview}
+                  />
+                </div>
               </div>
-            </div>
-          </aside>
+            </aside>
+          </>
         ) : null}
       </main>
     </div>

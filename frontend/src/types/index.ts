@@ -79,6 +79,9 @@ export type WorkflowMapNode = {
   workflowName: string;
   triggers: string[];
   branchRules: string[];
+  primaryTrigger: string;
+  phaseLabel: string;
+  phaseOrder: number;
   level: number;
   dependsOnWorkflowIds: string[];
 };
@@ -92,10 +95,27 @@ export type WorkflowMap = {
 
 export type RunSummary = {
   id: number;
+  runNumber: number;
+  title: string;
   branch: string;
   event: string;
-  status: 'success' | 'failure' | 'running';
+  status: 'success' | 'failure' | 'running' | 'neutral';
   startedAt: string;
+};
+
+export type RunStepSummary = {
+  number: number;
+  name: string;
+  status: 'success' | 'failure' | 'running' | 'neutral';
+};
+
+export type RunJobSummary = {
+  id: number;
+  name: string;
+  status: 'success' | 'failure' | 'running' | 'neutral';
+  startedAt: string;
+  completedAt: string | null;
+  steps: RunStepSummary[];
 };
 
 export type JobDetail = {
