@@ -25,6 +25,7 @@ type BuildCiReviewReportInput = {
 type WorkflowAssessment = {
   preview: WorkflowPreview;
   graph: WorkflowGraph;
+  meta: ReturnType<typeof parseWorkflowMeta>;
   findings: CiReviewFinding[];
   hasTimeout: boolean;
   hasCache: boolean;
@@ -145,6 +146,32 @@ export function buildCiReviewReport({
     watchouts,
     quickWins,
     categoryScores,
+    architecture: {
+      preMerge: workflowMap?.nodes.filter((node) => node.phaseLabel === 'PR').map((node) => node.workflowName) ?? [],
+      postMerge:
+        workflowMap?.nodes
+          .filter((node) => ['Push', 'Pipeline', 'Release'].includes(node.phaseLabel))
+          .map((node) => node.workflowName) ?? [],
+      manual:
+        workflowMap?.nodes
+          .filter((node) => ['Manual', 'Schedule', 'Other'].includes(node.phaseLabel))
+          .map((node) => node.workflowName) ?? [],
+    },
+    workflowCards: assessments
+      .map((assessment) => ({
+        workflowName: assessment.preview.workflowName,
+        fileName: assessment.preview.fileName,
+        triggerSummary:
+          assessment.meta.triggers.length > 0
+            ? assessment.meta.triggers.map(formatTrigger).join(', ')
+            : 'trigger 정보 없음',
+        phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+        jobCount: assessment.graph.jobs.length,
+        riskCount: assessment.findings.filter((finding) => finding.severity !== 'info').length,
+        headline: buildWorkflowCardHeadline(assessment),
+      }))
+      .sort((left, right) => right.riskCount - left.riskCount)
+      .slice(0, 8),
     findings: dedupedFindings,
   };
 }
@@ -161,53 +188,78 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   const hasPostMergeTrigger = meta.triggers.some((trigger) => ['push', 'workflow_run', 'workflow_call', 'release'].includes(trigger));
 
   if (/permissions:\s*write-all/i.test(content) || /contents:\s*write/i.test(content)) {
+    const location = findLine(content, /(permissions:\s*write-all|contents:\s*write)/i);
     findings.push({
       id: `${preview.fileName}-permissions`,
       severity: 'critical',
       category: 'security',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: location?.snippet,
+      impact: '기본 GITHUB_TOKEN이 넓은 쓰기 권한을 가지면 PR이나 외부 action과 결합될 때 변경 범위가 과도해질 수 있습니다.',
       summary: `${preview.workflowName}의 권한 범위가 넓습니다.`,
       recommendation: 'workflow 또는 job 수준 permissions를 최소 권한으로 축소하세요.',
     });
   } else if (!/permissions:/i.test(content)) {
+    const location = findLine(content, /^on:/im);
     findings.push({
       id: `${preview.fileName}-permissions-missing`,
       severity: 'info',
       category: 'security',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: 'permissions 블록이 보이지 않습니다.',
+      impact: '기본 토큰 권한에 의존하면 어떤 scope를 쓰는지 리뷰 단계에서 드러나지 않아 보안 검토가 어려워집니다.',
       summary: `${preview.workflowName}에 명시적 permissions 설정이 없습니다.`,
       recommendation: '기본 토큰 권한에 기대기보다 필요한 scope만 명시하는 편이 안전합니다.',
     });
   }
 
   if (!hasTimeout) {
+    const location = findLine(content, /^jobs:/im);
     findings.push({
       id: `${preview.fileName}-timeout`,
       severity: 'warning',
       category: 'reliability',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: 'timeout-minutes 선언이 없습니다.',
+      impact: 'hang이나 외부 API 지연이 발생했을 때 runner 점유 시간이 길어지고, queue 병목이 생길 수 있습니다.',
       summary: `${preview.workflowName}에는 timeout 제한이 없습니다.`,
       recommendation: 'job 또는 workflow에 timeout-minutes를 추가해 stuck runner를 줄이세요.',
     });
   }
 
   if (/setup-node/i.test(content) && !hasCache) {
+    const location = findLine(content, /setup-node/i);
     findings.push({
       id: `${preview.fileName}-cache`,
       severity: 'warning',
       category: 'performance',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: location?.snippet,
+      impact: '의존성 설치가 매 실행마다 반복되면 PR 검증 시간이 길어지고, 리뷰 피드백 루프가 느려집니다.',
       summary: `${preview.workflowName}는 Node 의존성 캐시가 보이지 않습니다.`,
       recommendation: 'actions/setup-node cache 또는 actions/cache로 설치 비용을 줄이세요.',
     });
   }
 
   if (/(deploy|release|publish)/i.test(`${preview.fileName} ${preview.workflowName}`) && !/concurrency:/i.test(content)) {
+    const location = findLine(content, /(deploy|release|publish)/i);
     findings.push({
       id: `${preview.fileName}-concurrency`,
       severity: 'warning',
       category: 'reliability',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: 'concurrency 블록이 보이지 않습니다.',
+      impact: '같은 브랜치나 환경에 대한 배포가 겹치면 이전 실행 결과를 덮어쓰거나 순서 역전이 생길 수 있습니다.',
       summary: `${preview.workflowName}는 배포 성격인데 concurrency 보호가 없습니다.`,
       recommendation: '같은 환경 배포가 겹치지 않도록 concurrency 그룹을 설정하세요.',
     });
@@ -215,30 +267,57 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
 
   const unpinnedActions = extractUnpinnedActions(content);
   if (unpinnedActions.length > 0) {
+    const location = findLine(content, /uses:\s*[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@/i);
     findings.push({
       id: `${preview.fileName}-unpinned-actions`,
       severity: 'info',
       category: 'security',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: unpinnedActions.slice(0, 3).join(', '),
+      impact: '태그 기반 action 참조는 상위 버전 변경에 따라 실행 결과가 바뀔 수 있어 재현성이 약해집니다.',
       summary: `${preview.workflowName}에서 SHA로 고정되지 않은 action 참조가 있습니다.`,
       recommendation: `${unpinnedActions.slice(0, 3).join(', ')} 같은 action은 SHA pinning을 검토하세요.`,
     });
   }
 
   if (graph.jobs.length >= 6 && !/workflow_call:/i.test(content)) {
+    const location = findLine(content, /^jobs:/im);
     findings.push({
       id: `${preview.fileName}-split`,
       severity: 'info',
       category: 'maintainability',
       workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: `job ${graph.jobs.length}개`,
+      impact: '역할이 많은 workflow가 한 파일에 모이면 변경 리뷰 시 영향 범위 추적과 재사용이 어려워집니다.',
       summary: `${preview.workflowName}는 job 수가 많아 단일 workflow로 읽기 부담이 있습니다.`,
       recommendation: 'reusable workflow 또는 역할별 파일 분리로 구조를 단순화하는 것을 검토하세요.',
+    });
+  }
+
+  if (hasPostMergeTrigger && !hasPreMergeTrigger && /test|build|lint|check/i.test(`${preview.workflowName} ${preview.fileName}`)) {
+    const location = findLine(content, /^on:/im);
+    findings.push({
+      id: `${preview.fileName}-late-validation`,
+      severity: 'warning',
+      category: 'coverage',
+      workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      evidence: location?.snippet,
+      impact: '검증성 workflow가 머지 이후에만 실행되면 문제를 늦게 발견하게 되어 롤백 비용이 커집니다.',
+      summary: `${preview.workflowName}는 검증 workflow로 보이지만 머지 이후에만 실행됩니다.`,
+      recommendation: '가능하면 pull_request 또는 merge_group 트리거를 추가해 앞단에서 검증하세요.',
     });
   }
 
   return {
     preview,
     graph,
+    meta,
     findings,
     hasTimeout,
     hasCache,
@@ -439,4 +518,43 @@ function formatTrigger(trigger: string) {
     default:
       return trigger;
   }
+}
+
+function findLine(content: string, pattern: RegExp) {
+  const lines = content.split(/\r?\n/);
+
+  for (const [index, line] of lines.entries()) {
+    if (pattern.test(line)) {
+      return {
+        line: index + 1,
+        snippet: line.trim(),
+      };
+    }
+  }
+
+  return null;
+}
+
+function mapPhaseLabel(triggers: string[]) {
+  if (triggers.some((trigger) => ['pull_request', 'pull_request_target', 'merge_group'].includes(trigger))) {
+    return '머지 이전';
+  }
+
+  if (triggers.some((trigger) => ['push', 'workflow_run', 'workflow_call', 'release'].includes(trigger))) {
+    return '머지 이후';
+  }
+
+  return '수동/기타';
+}
+
+function buildWorkflowCardHeadline(assessment: WorkflowAssessment) {
+  if (assessment.findings.some((finding) => finding.severity === 'critical')) {
+    return '보안 또는 검증 관점에서 먼저 손봐야 할 항목이 있습니다.';
+  }
+
+  if (assessment.findings.some((finding) => finding.severity === 'warning')) {
+    return '기본 구조는 보이지만 안정성/성능 튜닝 포인트가 남아 있습니다.';
+  }
+
+  return '현재 구조상 큰 경고는 적고, 역할이 비교적 분명한 workflow입니다.';
 }

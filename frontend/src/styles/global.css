@@ -476,7 +476,7 @@ textarea {
 }
 
 .map-overview-panel {
-  min-height: calc(100vh - 260px);
+  min-height: calc(100vh - 380px);
   background:
     radial-gradient(circle at 15% 15%, rgba(91, 209, 165, 0.18), transparent 20%),
     radial-gradient(circle at 85% 20%, rgba(143, 184, 255, 0.18), transparent 22%),
@@ -546,8 +546,8 @@ textarea {
 .workflow-force-container {
   position: relative;
   width: 100%;
-  min-height: 560px;
-  margin-top: 22px;
+  min-height: 480px;
+  margin-top: 18px;
   overflow: hidden;
   border: 1px solid var(--lane-border);
   border-radius: 22px;
@@ -800,7 +800,9 @@ textarea {
 
 .glance-columns,
 .report-stats-grid,
-.report-category-grid {
+.report-category-grid,
+.report-architecture-grid,
+.report-workflow-grid {
   display: grid;
   gap: 14px;
 }
@@ -874,6 +876,16 @@ textarea {
   margin-top: 18px;
 }
 
+.report-architecture-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.report-workflow-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
 .report-progress-track {
   width: 100%;
   height: 8px;
@@ -902,6 +914,36 @@ textarea {
   margin-top: 18px;
 }
 
+.report-workflow-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--item-border);
+  background: var(--item-bg);
+}
+
+.report-workflow-top,
+.report-workflow-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.report-workflow-top p {
+  margin: 6px 0 0;
+}
+
+.report-workflow-meta {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.report-workflow-card > p {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
 .report-finding-card.is-critical {
   border-color: rgba(255, 111, 125, 0.24);
 }
@@ -912,6 +954,13 @@ textarea {
 
 .report-finding-card.is-info {
   border-color: rgba(143, 184, 255, 0.24);
+}
+
+.report-finding-location {
+  margin-top: 10px;
+  color: var(--text);
+  font-family: "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.8rem;
 }
 
 .report-section {
@@ -1083,7 +1132,9 @@ textarea {
 
   .glance-columns,
   .report-stats-grid,
-  .report-category-grid {
+  .report-category-grid,
+  .report-architecture-grid,
+  .report-workflow-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1097,7 +1148,7 @@ textarea {
   }
 
   .workflow-force-container {
-    min-height: 460px;
+    min-height: 420px;
   }
 
   .detail-workspace {

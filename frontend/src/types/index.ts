@@ -159,6 +159,10 @@ export type CiReviewFinding = {
   severity: 'critical' | 'warning' | 'info';
   category: 'security' | 'reliability' | 'performance' | 'maintainability' | 'coverage';
   workflowName?: string;
+  filePath?: string;
+  line?: number;
+  evidence?: string;
+  impact?: string;
   summary: string;
   recommendation: string;
 };
@@ -183,6 +187,20 @@ export type CiReviewReport = {
     label: string;
     score: number;
     summary: string;
+  }>;
+  architecture: {
+    preMerge: string[];
+    postMerge: string[];
+    manual: string[];
+  };
+  workflowCards: Array<{
+    workflowName: string;
+    fileName: string;
+    triggerSummary: string;
+    phaseLabel: string;
+    jobCount: number;
+    riskCount: number;
+    headline: string;
   }>;
   findings: CiReviewFinding[];
 };

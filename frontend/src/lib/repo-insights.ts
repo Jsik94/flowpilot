@@ -132,7 +132,12 @@ export function buildReviewMarkdown(input: {
     '## Review Findings',
     ciReview && ciReview.findings.length > 0
       ? ciReview.findings
-          .map((issue) => `- [${issue.severity}] ${issue.summary}${issue.workflowName ? ` (${issue.workflowName})` : ''}\n  ${issue.recommendation}`)
+          .map(
+            (issue) =>
+              `- [${issue.severity}] ${issue.summary}${issue.workflowName ? ` (${issue.workflowName})` : ''}${
+                issue.filePath ? ` [${issue.filePath}${issue.line ? `:${issue.line}` : ''}]` : ''
+              }\n  ${issue.impact ? `영향: ${issue.impact}\n  ` : ''}${issue.evidence ? `근거: ${issue.evidence}\n  ` : ''}${issue.recommendation}`,
+          )
           .join('\n')
       : analysisResult && analysisResult.issues.length > 0
         ? analysisResult.issues.map((issue) => `- [${issue.severity}] ${issue.title} (${issue.target})\n  ${issue.summary}`).join('\n')

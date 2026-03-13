@@ -51,7 +51,8 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
   });
 
   assert.equal(report.stats.workflowCount, 1);
-  assert.ok(report.findings.some((finding) => finding.summary.includes('timeout')));
-  assert.ok(report.findings.some((finding) => finding.summary.includes('캐시')));
+  assert.ok(report.findings.some((finding) => finding.summary.includes('timeout') && typeof finding.line === 'number'));
+  assert.ok(report.findings.some((finding) => finding.summary.includes('캐시') && typeof finding.line === 'number'));
   assert.ok(report.categoryScores.some((category) => category.key === 'performance'));
+  assert.ok(report.workflowCards.length > 0);
 });
