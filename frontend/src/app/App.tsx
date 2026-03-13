@@ -192,7 +192,7 @@ export function App() {
   async function loadRepositoryContext(
     repoRef: RepositoryRef,
     branch: string,
-    token: string,
+    token: string | undefined,
     currentWorkflows: WorkflowSummary[],
   ) {
     setProgressState({
@@ -230,7 +230,7 @@ export function App() {
       return [];
     }
 
-    const jobs = await fetchRunJobs(repository, runId, formState.token);
+    const jobs = await fetchRunJobs(repository, runId, normalizeToken(formState.token));
     setSelectedRunJobs(jobs);
     return jobs;
   }
@@ -248,7 +248,7 @@ export function App() {
   ): Promise<WorkflowDiagnostic> {
     const repositoryRef = options?.repositoryRef ?? repository;
     const branchName = options?.branch ?? selectedBranch;
-    const token = options?.token ?? formState.token;
+    const token = options?.token ?? normalizeToken(formState.token);
 
     if (!repositoryRef || !branchName) {
       return {
@@ -437,7 +437,7 @@ export function App() {
   async function analyzeBranchDiagnostics(
     repoRef: RepositoryRef,
     branch: string,
-    token: string,
+    token: string | undefined,
     summaries: WorkflowSummary[],
     previewMap: Record<string, WorkflowPreview>,
   ) {
@@ -473,7 +473,7 @@ export function App() {
   async function loadBranchWorkflows(
     repoRef: RepositoryRef,
     branch: string,
-    token: string,
+    token?: string,
     preferredWorkflowId?: string,
   ) {
     setWorkflowLoading(true);
@@ -562,8 +562,9 @@ export function App() {
 
     try {
       const parsed = parseRepositoryUrl(formState.repoUrl);
-      const repoRef = await fetchRepository(parsed, formState.token);
-      const repoBranches = await fetchBranches(repoRef, formState.token);
+      const token = normalizeToken(formState.token);
+      const repoRef = await fetchRepository(parsed, token);
+      const repoBranches = await fetchBranches(repoRef, token);
       const orderedBranches = orderBranches(repoBranches, repoRef.defaultBranch);
       const initialBranch = orderedBranches[0]?.name ?? repoRef.defaultBranch;
 
@@ -571,11 +572,14 @@ export function App() {
       setBranches(orderedBranches);
       setSelectedBranch(initialBranch);
 
-      await loadBranchWorkflows(repoRef, initialBranch, formState.token);
+      await loadBranchWorkflows(repoRef, initialBranch, token);
     } catch (error) {
       const message =
         error instanceof Error
-          ? mapLoadError(error.message)
+          ? mapLoadError(error.message, {
+              tokenProvided: Boolean(normalizeToken(formState.token)),
+              repositoryAccess: true,
+            })
           : '레포 정보를 불러오지 못했습니다.';
 
       setErrorMessage(message);
@@ -671,7 +675,7 @@ export function App() {
     void loadBranchWorkflows(
       repository,
       branch,
-      formState.token,
+      normalizeToken(formState.token),
       selectedWorkflowId || undefined,
     );
   }
@@ -854,20 +858,39 @@ export function App() {
   );
 }
 
-function mapLoadError(message: string) {
+function mapLoadError(
+  message: string,
+  options?: {
+    tokenProvided?: boolean;
+    repositoryAccess?: boolean;
+  },
+) {
   if (message.includes('404')) {
+    if (options?.repositoryAccess && !options.tokenProvided) {
+      return '레포를 찾지 못했습니다. 공개 레포가 아니라면 Personal Access Token을 입력한 뒤 다시 시도하세요.';
+    }
+
     return '레포 또는 .github/workflows 경로를 찾지 못했습니다.';
   }
 
   if (message.includes('401')) {
-    return 'GitHub 토큰이 유효하지 않습니다.';
+    return 'GitHub 토큰이 유효하지 않습니다. 토큰 값과 권한을 확인하세요.';
   }
 
   if (message.includes('403')) {
-    return 'GitHub 접근 권한이 없거나 rate limit에 걸렸습니다.';
+    if (!options?.tokenProvided) {
+      return 'GitHub 접근이 제한되었습니다. 공개 레포가 아니라면 Personal Access Token을 입력하거나, rate limit이 풀린 뒤 다시 시도하세요.';
+    }
+
+    return 'GitHub 접근 권한이 없거나 rate limit에 걸렸습니다. 토큰 권한을 확인하세요.';
   }
 
   return message || '레포 정보를 불러오지 못했습니다.';
+}
+
+function normalizeToken(token: string) {
+  const trimmed = token.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function getInitialTheme(): ThemeMode {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { BranchSummary, RepositoryFormState, RepositoryRef } from '../../../types';
 
 type RepositoryFormProps = {
@@ -35,6 +36,11 @@ export function RepositoryForm({
   onToggleTheme,
   onBranchChange,
 }: RepositoryFormProps) {
+  const [showTokenHelp, setShowTokenHelp] = useState(false);
+  const tokenGuidance = connectedRepo?.isPrivate
+    ? '현재 연결된 레포는 private 입니다. workflow와 run 정보를 읽으려면 PAT가 필요합니다.'
+    : '공개 레포는 PAT 없이도 조회할 수 있습니다. private 레포 또는 권한 제한이 걸린 경우에만 입력하세요.';
+
   return (
     <section className="panel panel-hero">
       <div className="hero-toolbar">
@@ -83,7 +89,17 @@ export function RepositoryForm({
           />
         </label>
         <label>
-          <span>Personal Access Token</span>
+          <span className="field-label-row">
+            <span>Personal Access Token (Optional)</span>
+            <button
+              aria-expanded={showTokenHelp}
+              className="field-help-button"
+              onClick={() => setShowTokenHelp((current) => !current)}
+              type="button"
+            >
+              i
+            </button>
+          </span>
           <input
             value={value.token}
             onChange={(event) =>
@@ -92,6 +108,7 @@ export function RepositoryForm({
                 token: event.target.value,
               })
             }
+            placeholder="public repo면 비워도 됩니다"
             type="password"
           />
         </label>
@@ -106,6 +123,25 @@ export function RepositoryForm({
           </button>
         </div>
       </div>
+
+      <p className="panel-note token-guidance">{tokenGuidance}</p>
+
+      {showTokenHelp ? (
+        <div className="token-help-panel">
+          <strong>PAT 발급 방법</strong>
+          <ol className="token-help-list">
+            <li>GitHub 우측 상단 프로필에서 `Settings`로 이동합니다.</li>
+            <li>왼쪽 하단 `Developer settings`를 엽니다.</li>
+            <li>`Personal access tokens`에서 `Fine-grained tokens` 또는 `Tokens (classic)`을 선택합니다.</li>
+            <li>`Generate new token`을 눌러 만료일과 대상 레포를 지정합니다.</li>
+            <li>권한은 최소한으로 주는 편이 좋습니다. 이 앱 기준으로는 `Metadata: Read-only`, `Contents: Read-only`, `Actions: Read-only`면 충분합니다.</li>
+            <li>생성 후 토큰은 한 번만 보이므로 바로 복사해서 여기에 붙여 넣습니다.</li>
+          </ol>
+          <p className="panel-note">
+            공개 레포는 PAT 없이도 조회됩니다. private 레포거나 권한이 필요한 run 정보가 막힐 때만 입력하세요.
+          </p>
+        </div>
+      ) : null}
 
       {connectedRepo ? (
         <div className="branch-row">
