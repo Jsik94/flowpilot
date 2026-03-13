@@ -52,6 +52,8 @@ type GitHubWorkflowRunsResponse = {
     status: string;
     conclusion: string | null;
     created_at: string;
+    run_started_at?: string | null;
+    updated_at?: string | null;
   }>;
 };
 
@@ -196,7 +198,9 @@ export function mapWorkflowRunsToSummaries(runs: GitHubWorkflowRunsResponse['wor
     branch: run.head_branch,
     event: run.event,
     status: mapExecutionState(run.status, run.conclusion),
-    startedAt: run.created_at,
+    startedAt: run.run_started_at || run.created_at,
+    completedAt: run.updated_at ?? null,
+    durationMinutes: calculateDurationMinutes(run.run_started_at || run.created_at, run.updated_at ?? null),
   }));
 }
 
@@ -236,6 +240,21 @@ export function mapExecutionState(status?: string | null, conclusion?: string | 
     default:
       return 'neutral' as const;
   }
+}
+
+function calculateDurationMinutes(startedAt?: string | null, completedAt?: string | null) {
+  if (!startedAt || !completedAt) {
+    return null;
+  }
+
+  const started = new Date(startedAt).getTime();
+  const completed = new Date(completedAt).getTime();
+
+  if (Number.isNaN(started) || Number.isNaN(completed) || completed <= started) {
+    return null;
+  }
+
+  return Math.round(((completed - started) / 1000 / 60) * 10) / 10;
 }
 
 function createGitHubHeaders(token?: string) {

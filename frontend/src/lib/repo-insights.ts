@@ -105,6 +105,26 @@ export function buildReviewMarkdown(input: {
       ? ciReview.quickWins.map((item) => `- ${item}`).join('\n')
       : '- quick wins unavailable',
     '',
+    '## Failure Snapshot',
+    ciReview?.failureInsights.items.length
+      ? ciReview.failureInsights.items
+          .map(
+            (item) =>
+              `- ${item.workflowName} (${item.fileName}): failures ${item.failureCount}, jobs ${item.latestFailureJobs.join(', ') || 'unknown'}`,
+          )
+          .join('\n')
+      : '- failure snapshot unavailable',
+    '',
+    '## Workflow Performance',
+    ciReview?.workflowCards.length
+      ? ciReview.workflowCards
+          .map(
+            (workflow) =>
+              `- ${workflow.workflowName}: ${workflow.estimatedDurationText}, ${workflow.failureText}\n  ${workflow.analysisSummary}`,
+          )
+          .join('\n')
+      : '- workflow performance unavailable',
+    '',
     '## Repository Analysis',
     repoInsight?.summary ?? '레포 분석 정보가 아직 없습니다.',
     '',

@@ -101,6 +101,8 @@ test('mapWorkflowRunsToSummaries maps GitHub run status into UI status', () => {
       status: 'completed',
       conclusion: 'success',
       created_at: '2026-03-13T10:00:00Z',
+      run_started_at: '2026-03-13T10:01:00Z',
+      updated_at: '2026-03-13T10:06:00Z',
     },
     {
       id: 102,
@@ -111,13 +113,17 @@ test('mapWorkflowRunsToSummaries maps GitHub run status into UI status', () => {
       status: 'in_progress',
       conclusion: null,
       created_at: '2026-03-13T10:05:00Z',
+      run_started_at: '2026-03-13T10:05:00Z',
+      updated_at: null,
     },
   ]);
 
   assert.equal(runs[0]?.title, 'Fix cache key');
   assert.equal(runs[0]?.status, 'success');
+  assert.equal(runs[0]?.durationMinutes, 5);
   assert.equal(runs[1]?.title, 'CI');
   assert.equal(runs[1]?.status, 'running');
+  assert.equal(runs[1]?.durationMinutes, null);
 });
 
 test('mapRunJobsToSummaries maps jobs and step execution states', () => {

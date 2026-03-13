@@ -111,6 +111,40 @@ export function ReviewReportPanel({
               <span className="report-stat-value">{report.stats.runCount}</span>
               <span className="report-stat-label">Observed Runs</span>
             </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.failedWorkflowCount}</span>
+              <span className="report-stat-label">Failed Workflows</span>
+            </article>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Failure Snapshot</p>
+                <h2>현재 브랜치 실패 요약</h2>
+              </div>
+            </div>
+
+            <article className="report-card">
+              <span className="detail-label">Recent Failures</span>
+              <strong>{report.failureInsights.summary}</strong>
+              {report.failureInsights.items.length > 0 ? (
+                <div className="report-role-list">
+                  {report.failureInsights.items.map((item) => (
+                    <div key={item.fileName} className="report-role-item">
+                      <strong>{item.workflowName}</strong>
+                      <p>{item.fileName}</p>
+                      <p>최근 실패 {item.failureCount}건</p>
+                      <p className="issue-target">
+                        {item.latestFailureJobs.length > 0
+                          ? `실패 job: ${item.latestFailureJobs.join(', ')}`
+                          : '최근 실패 job 상세 없음'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </article>
           </section>
 
           <section className="report-section">
@@ -292,6 +326,9 @@ export function ReviewReportPanel({
                     <span>Jobs: {workflow.jobCount}</span>
                     <span>Risks: {workflow.riskCount}</span>
                   </div>
+                  <p className="report-workflow-inline-meta">{workflow.estimatedDurationText}</p>
+                  <p className="report-workflow-inline-meta">{workflow.failureText}</p>
+                  <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
                   <p>{workflow.headline}</p>
                 </button>
               ))}

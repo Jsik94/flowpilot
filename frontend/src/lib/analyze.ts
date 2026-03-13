@@ -50,6 +50,8 @@ export async function analyzeWorkflow(input: AnalyzeWorkflowInput) {
         status: run.status,
         event: run.event,
         branch: run.branch,
+        durationMinutes: run.durationMinutes,
+        completedAt: run.completedAt,
       })),
       runJobs: input.runJobs.map((job) => ({
         name: job.name,

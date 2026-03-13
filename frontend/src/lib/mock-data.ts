@@ -44,6 +44,8 @@ export const runs: RunSummary[] = [
     event: 'push',
     status: 'failure',
     startedAt: '5분 전',
+    completedAt: null,
+    durationMinutes: null,
   },
   {
     id: 1519,
@@ -53,6 +55,8 @@ export const runs: RunSummary[] = [
     event: 'push',
     status: 'success',
     startedAt: '38분 전',
+    completedAt: null,
+    durationMinutes: null,
   },
   {
     id: 1518,
@@ -62,6 +66,8 @@ export const runs: RunSummary[] = [
     event: 'pull_request',
     status: 'running',
     startedAt: '1시간 전',
+    completedAt: null,
+    durationMinutes: null,
   },
 ];
 

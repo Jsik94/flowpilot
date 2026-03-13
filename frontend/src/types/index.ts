@@ -110,6 +110,8 @@ export type RunSummary = {
   event: string;
   status: ExecutionState;
   startedAt: string;
+  completedAt: string | null;
+  durationMinutes: number | null;
 };
 
 export type RunStepSummary = {
@@ -154,6 +156,18 @@ export type AnalysisResult = {
   issues: AnalysisIssue[];
 };
 
+export type WorkflowDiagnostic = {
+  workflowId: string;
+  workflowName: string;
+  fileName: string;
+  runs: RunSummary[];
+  latestRunJobs: RunJobSummary[];
+  analysis: AnalysisResult | null;
+  estimatedDurationMinutes: number | null;
+  failureCount: number;
+  latestFailureJobs: string[];
+};
+
 export type CiReviewFinding = {
   id: string;
   severity: 'critical' | 'warning' | 'info';
@@ -187,6 +201,7 @@ export type CiReviewReport = {
     manualCount: number;
     jobCount: number;
     runCount: number;
+    failedWorkflowCount: number;
   };
   strengths: string[];
   watchouts: string[];
@@ -226,6 +241,15 @@ export type CiReviewReport = {
     latencyRisks: string[];
     efficiencyTips: string[];
   };
+  failureInsights: {
+    summary: string;
+    items: Array<{
+      workflowName: string;
+      fileName: string;
+      failureCount: number;
+      latestFailureJobs: string[];
+    }>;
+  };
   workflowCards: Array<{
     workflowName: string;
     fileName: string;
@@ -234,6 +258,9 @@ export type CiReviewReport = {
     jobCount: number;
     riskCount: number;
     headline: string;
+    estimatedDurationText: string;
+    failureText: string;
+    analysisSummary: string;
   }>;
   findings: CiReviewFinding[];
 };

@@ -7,6 +7,7 @@ import type {
   CiReviewReport,
   RepoInsight,
   RunSummary,
+  WorkflowDiagnostic,
   WorkflowMap,
   WorkflowGraph,
   WorkflowPreview,
@@ -20,6 +21,7 @@ type BuildCiReviewReportInput = {
   branchComparison: BranchComparison | null;
   runs: RunSummary[];
   analysisResult: AnalysisResult | null;
+  diagnostics: Record<string, WorkflowDiagnostic>;
 };
 
 type WorkflowAssessment = {
@@ -75,6 +77,7 @@ export function buildCiReviewReport({
   branchComparison,
   runs,
   analysisResult,
+  diagnostics,
 }: BuildCiReviewReportInput): CiReviewReport {
   const assessments = previews.map((preview) => assessWorkflow(preview));
   const findings = assessments.flatMap((assessment) => assessment.findings);
@@ -84,6 +87,7 @@ export function buildCiReviewReport({
   const manualCount =
     workflowMap?.nodes.filter((node) => ['Manual', 'Schedule', 'Other'].includes(node.phaseLabel)).length ?? 0;
   const jobCount = assessments.reduce((count, assessment) => count + assessment.graph.jobs.length, 0);
+  const failedWorkflowCount = Object.values(diagnostics).filter((diagnostic) => diagnostic.failureCount > 0).length;
 
   if (preMergeCount === 0 && previews.length > 0) {
     findings.push({
@@ -105,13 +109,31 @@ export function buildCiReviewReport({
     });
   }
 
-  const mergedAiFindings = (analysisResult?.issues ?? []).slice(0, 2).map<CiReviewFinding>((issue) => ({
-    id: `analysis-${issue.id}`,
-    severity: issue.severity,
-    category: 'reliability',
-    summary: issue.title,
-    recommendation: issue.summary || '선택된 workflow 세부 이슈를 확인하세요.',
-  }));
+  const mergedAiFindings = Object.values(diagnostics)
+    .flatMap((diagnostic) =>
+      (diagnostic.analysis?.issues ?? []).slice(0, 2).map<CiReviewFinding>((issue) => ({
+        id: `analysis-${diagnostic.workflowId}-${issue.id}`,
+        severity: issue.severity,
+        category: 'reliability',
+        workflowName: diagnostic.workflowName,
+        filePath: previews.find((preview) => preview.path === diagnostic.workflowId)?.path,
+        summary: issue.title,
+        recommendation: issue.summary || '선택된 workflow 세부 이슈를 확인하세요.',
+      })),
+    )
+    .slice(0, 6);
+
+  if (mergedAiFindings.length === 0 && analysisResult?.issues.length) {
+    mergedAiFindings.push(
+      ...analysisResult.issues.slice(0, 2).map<CiReviewFinding>((issue) => ({
+        id: `analysis-${issue.id}`,
+        severity: issue.severity,
+        category: 'reliability',
+        summary: issue.title,
+        recommendation: issue.summary || '선택된 workflow 세부 이슈를 확인하세요.',
+      })),
+    );
+  }
   findings.push(...mergedAiFindings);
   const roleAnalysis = analyzeWorkflowRoles(assessments);
   findings.push(
@@ -147,6 +169,7 @@ export function buildCiReviewReport({
       repoInsight,
       branchComparison,
       score,
+      failedWorkflowCount,
     }),
     score,
     stats: {
@@ -156,6 +179,7 @@ export function buildCiReviewReport({
       manualCount,
       jobCount,
       runCount: runs.length,
+      failedWorkflowCount,
     },
     strengths,
     watchouts,
@@ -174,19 +198,34 @@ export function buildCiReviewReport({
     },
     roleAnalysis,
     optimizationInsights,
+    failureInsights: buildFailureInsights(diagnostics),
     workflowCards: assessments
-      .map((assessment) => ({
-        workflowName: assessment.preview.workflowName,
-        fileName: assessment.preview.fileName,
-        triggerSummary:
-          assessment.meta.triggers.length > 0
-            ? assessment.meta.triggers.map(formatTrigger).join(', ')
-            : 'trigger 정보 없음',
-        phaseLabel: mapPhaseLabel(assessment.meta.triggers),
-        jobCount: assessment.graph.jobs.length,
-        riskCount: assessment.findings.filter((finding) => finding.severity !== 'info').length,
-        headline: buildWorkflowCardHeadline(assessment),
-      }))
+      .map((assessment) => {
+        const diagnostic = diagnostics[assessment.preview.path];
+
+        return {
+          workflowName: assessment.preview.workflowName,
+          fileName: assessment.preview.fileName,
+          triggerSummary:
+            assessment.meta.triggers.length > 0
+              ? assessment.meta.triggers.map(formatTrigger).join(', ')
+              : 'trigger 정보 없음',
+          phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+          jobCount: assessment.graph.jobs.length,
+          riskCount: assessment.findings.filter((finding) => finding.severity !== 'info').length,
+          headline: buildWorkflowCardHeadline(assessment),
+          estimatedDurationText:
+            diagnostic?.estimatedDurationMinutes != null
+              ? `예상 ${diagnostic.estimatedDurationMinutes}분`
+              : '예상 시간 정보 없음',
+          failureText:
+            diagnostic && diagnostic.failureCount > 0
+              ? `최근 실패 ${diagnostic.failureCount}건 · ${diagnostic.latestFailureJobs.join(', ') || '실패 job 확인 필요'}`
+              : '최근 실패 없음',
+          analysisSummary:
+            diagnostic?.analysis?.summary ?? '세부 분석 요약이 아직 없습니다.',
+        };
+      })
       .sort((left, right) => right.riskCount - left.riskCount)
       .slice(0, 8),
     findings: dedupedFindings,
@@ -546,13 +585,14 @@ function buildReportSummary(input: {
   repoInsight: RepoInsight | null;
   branchComparison: BranchComparison | null;
   score: number;
+  failedWorkflowCount?: number;
 }) {
   const branchDelta =
     input.branchComparison && input.branchComparison.currentBranch !== input.branchComparison.baseBranch
       ? `${input.branchComparison.baseBranch} 대비 workflow 차이가 존재합니다.`
       : '기본 브랜치와 비교했을 때 큰 구조 차이는 제한적입니다.';
 
-  return `브랜치 ${input.selectedBranch}에는 총 ${input.workflowCount}개의 workflow가 있고, 머지 이전 ${input.preMergeCount}개 / 머지 이후 ${input.postMergeCount}개 흐름이 보입니다. 현재 CI 평가는 ${input.score}점 수준이며, ${input.repoInsight?.summary ?? '레포 신호는 아직 제한적입니다.'} ${branchDelta}`;
+  return `브랜치 ${input.selectedBranch}에는 총 ${input.workflowCount}개의 workflow가 있고, 머지 이전 ${input.preMergeCount}개 / 머지 이후 ${input.postMergeCount}개 흐름이 보입니다. 현재 CI 평가는 ${input.score}점 수준이며, 최근 실패가 관찰된 workflow는 ${input.failedWorkflowCount ?? 0}개입니다. ${input.repoInsight?.summary ?? '레포 신호는 아직 제한적입니다.'} ${branchDelta}`;
 }
 
 function dedupeFindings(findings: CiReviewFinding[]) {
@@ -761,6 +801,27 @@ function buildOptimizationInsights(
     duplicateWork,
     latencyRisks,
     efficiencyTips,
+  };
+}
+
+function buildFailureInsights(diagnostics: Record<string, WorkflowDiagnostic>) {
+  const items = Object.values(diagnostics)
+    .filter((diagnostic) => diagnostic.failureCount > 0)
+    .sort((left, right) => right.failureCount - left.failureCount)
+    .map((diagnostic) => ({
+      workflowName: diagnostic.workflowName,
+      fileName: diagnostic.fileName,
+      failureCount: diagnostic.failureCount,
+      latestFailureJobs: diagnostic.latestFailureJobs,
+    }))
+    .slice(0, 6);
+
+  return {
+    summary:
+      items.length > 0
+        ? `현재 브랜치 기준으로 최근 실패가 관찰된 workflow ${items.length}개를 우선 정리했습니다.`
+        : '현재 브랜치 기준으로 최근 실패가 뚜렷하게 관찰된 workflow는 많지 않습니다.',
+    items,
   };
 }
 

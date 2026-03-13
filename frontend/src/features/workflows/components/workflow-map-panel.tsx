@@ -88,7 +88,7 @@ export function WorkflowMapPanel({
     graph.d3Force('y')?.y?.((node: ForceNode) => size.height / 2 + (node.level - 1) * 90);
 
     const alignToCenter = window.setTimeout(() => {
-      graph.zoomToFit(500, 90);
+      graph.zoomToFit(500, 28);
       graph.centerAt(0, 0, 350);
     }, 60);
 
@@ -206,7 +206,7 @@ export function WorkflowMapPanel({
                 return;
               }
 
-              graph.zoomToFit(350, 90);
+              graph.zoomToFit(350, 28);
               graph.centerAt(0, 0, 250);
             }}
             width={size.width}

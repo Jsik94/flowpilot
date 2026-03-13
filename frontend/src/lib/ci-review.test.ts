@@ -48,6 +48,7 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
     branchComparison: null,
     runs: [],
     analysisResult: null,
+    diagnostics: {},
   });
 
   assert.equal(report.stats.workflowCount, 1);
@@ -91,6 +92,19 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
     branchComparison: null,
     runs: [],
     analysisResult: null,
+    diagnostics: {
+      [PREVIEW.path]: {
+        workflowId: PREVIEW.path,
+        workflowName: PREVIEW.workflowName,
+        fileName: PREVIEW.fileName,
+        runs: [],
+        latestRunJobs: [],
+        analysis: null,
+        estimatedDurationMinutes: 6.4,
+        failureCount: 2,
+        latestFailureJobs: ['build'],
+      },
+    },
   });
 
   assert.ok(report.roleAnalysis.overlaps.some((overlap) => overlap.role === 'PR Validation'));
@@ -100,4 +114,5 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
       (category) => category.key === 'duplication' || category.key === 'latency',
     ),
   );
+  assert.ok(report.failureInsights.items.length > 0);
 });

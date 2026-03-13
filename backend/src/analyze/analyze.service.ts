@@ -16,6 +16,8 @@ export type AnalyzeRequest = {
     status?: string;
     event?: string;
     branch?: string;
+    completedAt?: string | null;
+    durationMinutes?: number | null;
   }>;
   runJobs?: Array<{
     name?: string;
@@ -117,7 +119,12 @@ function buildPrompt(payload: AnalyzeRequest) {
   const workflow = payload.workflow;
   const runSummary = (payload.runs ?? [])
     .slice(0, 5)
-    .map((run) => `- #${run.id} ${run.status} ${run.event} ${run.branch} ${run.title ?? ''}`.trim())
+    .map(
+      (run) =>
+        `- #${run.id} ${run.status} ${run.event} ${run.branch} ${run.title ?? ''} ${
+          run.durationMinutes != null ? `${run.durationMinutes}m` : ''
+        }`.trim(),
+    )
     .join('\n');
   const failedJobs = (payload.runJobs ?? [])
     .filter((job) => job.status === 'failure')
@@ -129,6 +136,7 @@ function buildPrompt(payload: AnalyzeRequest) {
     'Return JSON only with this shape:',
     '{"summary":"string","issues":[{"severity":"critical|warning|info","title":"string","job":"string","description":"string","suggestion":"string"}]}',
     'Focus on actionable problems only. Limit to at most 5 issues.',
+    'Pay attention to security, reliability, CI latency, duplicate checks, and branch-specific failure patterns.',
     '',
     `Repository: ${payload.repo?.owner ?? 'unknown'}/${payload.repo?.name ?? 'unknown'}`,
     `Workflow file: ${workflow?.fileName ?? 'workflow.yml'}`,

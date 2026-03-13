@@ -32,6 +32,7 @@ import type {
   RunSummary,
   WorkflowMap,
   WorkflowGraph,
+  WorkflowDiagnostic,
   WorkflowPreview,
   WorkflowSummary,
 } from '../types';
@@ -65,8 +66,10 @@ export function App() {
   const [runLoading, setRunLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [branchAnalysisLoading, setBranchAnalysisLoading] = useState(false);
   const [repoInsight, setRepoInsight] = useState<RepoInsight | null>(null);
   const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null);
+  const [workflowDiagnostics, setWorkflowDiagnostics] = useState<Record<string, WorkflowDiagnostic>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sourceFocus, setSourceFocus] = useState<{
     path: string;
@@ -90,11 +93,21 @@ export function App() {
             workflowMap,
             repoInsight,
             branchComparison,
-            runs: workflowRuns,
+            runs: allPreviews.flatMap((preview) => workflowDiagnostics[preview.path]?.runs ?? []),
             analysisResult,
+            diagnostics: workflowDiagnostics,
           })
         : null,
-    [allPreviews, analysisResult, branchComparison, repoInsight, repository, selectedBranch, workflowMap, workflowRuns],
+    [
+      allPreviews,
+      analysisResult,
+      branchComparison,
+      repoInsight,
+      repository,
+      selectedBranch,
+      workflowDiagnostics,
+      workflowMap,
+    ],
   );
   const workflowSummary = useMemo(
     () => (selectedPreview ? buildWorkflowNarrative(selectedPreview, workflowGraph, workflowRuns) : null),
@@ -164,6 +177,13 @@ export function App() {
     setSourceFocus(null);
   }
 
+  function upsertWorkflowDiagnostic(diagnostic: WorkflowDiagnostic) {
+    setWorkflowDiagnostics((current) => ({
+      ...current,
+      [diagnostic.workflowId]: diagnostic,
+    }));
+  }
+
   function persistFormState(nextState: RepositoryFormState) {
     setFormState(nextState);
     window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextState));
@@ -205,6 +225,7 @@ export function App() {
     preview: WorkflowPreview,
     runs: RunSummary[],
     runJobs: RunJobSummary[],
+    workflowId = preview.path,
   ) {
     if (!repository) {
       setAnalysisResult(null);
@@ -225,8 +246,17 @@ export function App() {
         runJobs,
       });
       setAnalysisResult(result);
+      const existing = workflowDiagnostics[workflowId];
+      if (existing) {
+        upsertWorkflowDiagnostic({
+          ...existing,
+          analysis: result,
+        });
+      }
+      return result;
     } catch {
       setAnalysisResult(null);
+      return null;
     } finally {
       setAnalysisLoading(false);
     }
@@ -294,8 +324,83 @@ export function App() {
     const graph = buildWorkflowGraph(preview.content, preview.workflowName);
     setWorkflowGraph(graph);
     setSelectedJobId(graph.jobs[0]?.id ?? '');
+    const cached = workflowDiagnostics[workflowId];
+    if (cached) {
+      setWorkflowRuns(cached.runs);
+      setSelectedRunId(cached.runs[0]?.id ?? null);
+      setSelectedRunJobs(cached.latestRunJobs);
+      setAnalysisResult(cached.analysis);
+      return;
+    }
+
     const { runs, jobs } = await loadWorkflowRunsForSelection(selected);
-    await runWorkflowSummary(preview, runs, jobs);
+    const analysis = await runWorkflowSummary(preview, runs, jobs, workflowId);
+    upsertWorkflowDiagnostic({
+      workflowId,
+      workflowName: preview.workflowName,
+      fileName: preview.fileName,
+      runs,
+      latestRunJobs: jobs,
+      analysis: analysis ?? null,
+      estimatedDurationMinutes: estimateWorkflowDuration(runs, graph),
+      failureCount: runs.filter((run) => run.status === 'failure').length,
+      latestFailureJobs: jobs.filter((job) => job.status === 'failure').map((job) => job.name),
+    });
+  }
+
+  async function analyzeBranchDiagnostics(
+    repoRef: RepositoryRef,
+    branch: string,
+    token: string,
+    summaries: WorkflowSummary[],
+    previewMap: Record<string, WorkflowPreview>,
+  ) {
+    setBranchAnalysisLoading(true);
+    setWorkflowDiagnostics({});
+
+    try {
+      for (const [index, workflow] of summaries.entries()) {
+        const preview = previewMap[workflow.id];
+        if (!preview) {
+          continue;
+        }
+
+        setProgressState({
+          label: `브랜치 리포트 분석 ${index + 1}/${summaries.length}`,
+          current: index + 1,
+          total: summaries.length,
+        });
+
+        const runs = await fetchWorkflowRuns(repoRef, workflow.fileName, branch, token);
+        const latestRun = runs[0] ?? null;
+        const runJobs = latestRun ? await fetchRunJobs(repoRef, latestRun.id, token) : [];
+        const analysis = await analyzeWorkflow({
+          repository: {
+            owner: repoRef.owner,
+            repo: repoRef.repo,
+          },
+          branch,
+          preview,
+          runs,
+          runJobs,
+        }).catch(() => null);
+
+        upsertWorkflowDiagnostic({
+          workflowId: workflow.id,
+          workflowName: preview.workflowName,
+          fileName: preview.fileName,
+          runs,
+          latestRunJobs: runJobs,
+          analysis,
+          estimatedDurationMinutes: estimateWorkflowDuration(runs, buildWorkflowGraph(preview.content, preview.workflowName)),
+          failureCount: runs.filter((run) => run.status === 'failure').length,
+          latestFailureJobs: runJobs.filter((job) => job.status === 'failure').map((job) => job.name),
+        });
+      }
+    } finally {
+      setBranchAnalysisLoading(false);
+      setProgressState(null);
+    }
   }
 
   async function loadBranchWorkflows(
@@ -340,6 +445,7 @@ export function App() {
       const previewMap = Object.fromEntries(previewEntries);
       setWorkflowPreviews(previewMap);
       setWorkflowMap(buildWorkflowMap(Object.values(previewMap)));
+      void analyzeBranchDiagnostics(repoRef, branch, token, summaries, previewMap);
 
       const nextWorkflowId =
         preferredWorkflowId && summaries.some((item) => item.id === preferredWorkflowId)
@@ -361,6 +467,7 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
+      setWorkflowDiagnostics({});
       setRepoInsight(null);
       setBranchComparison(null);
       closeDetailDrawer();
@@ -400,6 +507,7 @@ export function App() {
       setWorkflowItems([]);
       setWorkflowMap(null);
       setWorkflowPreviews({});
+      setWorkflowDiagnostics({});
       setRepoInsight(null);
       setBranchComparison(null);
       closeDetailDrawer();
@@ -562,7 +670,7 @@ export function App() {
         errorMessage={errorMessage}
         branches={branches}
         branchLoading={workflowLoading}
-        loading={repositoryLoading}
+        loading={repositoryLoading || branchAnalysisLoading}
         onChange={persistFormState}
         onBranchChange={handleSelectBranch}
         onSubmit={() => {
@@ -710,4 +818,23 @@ function orderBranches(branches: BranchSummary[], defaultBranch: string) {
 
     return left.name.localeCompare(right.name);
   });
+}
+
+function estimateWorkflowDuration(runs: RunSummary[], workflowGraph: WorkflowGraph | null) {
+  const actualDurations = runs
+    .map((run) => run.durationMinutes)
+    .filter((duration): duration is number => typeof duration === 'number' && duration > 0);
+
+  if (actualDurations.length > 0) {
+    return Math.round((actualDurations.reduce((sum, duration) => sum + duration, 0) / actualDurations.length) * 10) / 10;
+  }
+
+  if (!workflowGraph) {
+    return null;
+  }
+
+  const stepCount = workflowGraph.jobs.reduce((count, job) => count + job.steps.length, 0);
+  const longestChain = Math.max(1, ...workflowGraph.jobs.map((job) => job.level + 1));
+
+  return Math.round((stepCount * 0.8 + longestChain * 1.5) * 10) / 10;
 }
