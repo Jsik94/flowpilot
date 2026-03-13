@@ -194,12 +194,50 @@ textarea {
   color: var(--muted);
 }
 
+.repository-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.95fr);
+  gap: 24px;
+  margin-top: 28px;
+  align-items: start;
+}
+
+.repository-hero-main {
+  display: grid;
+  gap: 18px;
+}
+
+.repository-sidecard {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--item-border);
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--panel-strong), var(--item-bg));
+}
+
+.repository-sidecard h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.repository-side-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+}
+
 .repository-form {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(220px, 0.9fr);
   gap: 18px;
-  margin-top: 24px;
   align-items: end;
+  padding: 18px;
+  border: 1px solid var(--item-border);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
 }
 
 .repository-form label {
@@ -245,6 +283,10 @@ textarea {
 .visibility-field {
   display: grid;
   gap: 10px;
+}
+
+.visibility-caption {
+  margin-top: 2px;
 }
 
 .visibility-toggle {
@@ -318,27 +360,17 @@ textarea {
   resize: vertical;
 }
 
-.branch-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 18px;
-  align-items: end;
-  flex-wrap: wrap;
-}
-
-.token-guidance {
-  margin-top: 16px;
-}
-
 .token-help-panel {
   display: grid;
   gap: 12px;
-  margin-top: 14px;
   padding: 16px 18px;
   border: 1px solid var(--item-border);
   border-radius: 18px;
   background: var(--item-bg);
+}
+
+.token-help-panel-embedded {
+  margin-top: 4px;
 }
 
 .token-help-list {
@@ -352,17 +384,51 @@ textarea {
 .form-actions {
   display: grid;
   gap: 10px;
-  align-self: end;
 }
 
 .form-actions-note {
   margin: 0;
 }
 
+.repository-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.repository-cta-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.repository-cta-copy strong {
+  font-size: 0.96rem;
+}
+
+.branch-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+  padding: 18px;
+  border: 1px solid var(--item-border);
+  border-radius: 20px;
+  background: var(--item-bg);
+}
+
+.branch-note {
+  max-width: 420px;
+}
+
 .progress-block {
   display: grid;
   gap: 8px;
-  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--item-border);
+  border-radius: 18px;
+  background: var(--item-bg);
 }
 
 .progress-meta {
@@ -407,18 +473,44 @@ textarea {
   color: var(--text);
 }
 
-.form-actions {
-  display: flex;
-  gap: 10px;
-  align-items: end;
-}
-
 .panel-status-row {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 18px;
   flex-wrap: wrap;
+}
+
+.repository-status-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.status-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--item-border);
+  border-radius: 20px;
+  background: var(--item-bg);
+}
+
+.status-card.is-error {
+  border-color: rgba(255, 111, 125, 0.28);
+}
+
+.status-card-label {
+  color: var(--muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.status-card-value {
+  margin: 0;
+}
+
+.repository-footnote {
+  margin-top: 18px;
 }
 
 .button {
@@ -1566,13 +1658,10 @@ textarea {
     display: grid;
   }
 
+  .repository-hero-grid,
   .repository-form,
   .private-auth-grid {
     grid-template-columns: 1fr;
-  }
-
-  .form-actions {
-    align-items: stretch;
   }
 
   .graph-lanes {
@@ -1593,6 +1682,10 @@ textarea {
 
   .branch-row {
     align-items: stretch;
+  }
+
+  .repository-status-row {
+    grid-template-columns: 1fr;
   }
 
   .detail-drawer {
