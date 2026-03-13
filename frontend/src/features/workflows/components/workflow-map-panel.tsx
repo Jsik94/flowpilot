@@ -91,7 +91,6 @@ export function WorkflowMapPanel({
 
     const alignToCenter = window.setTimeout(() => {
       graph.zoomToFit(500, 14);
-      graph.centerAt(0, 0, 350);
     }, 60);
 
     return () => {
@@ -234,7 +233,6 @@ export function WorkflowMapPanel({
               }
 
               graph.zoomToFit(350, 14);
-              graph.centerAt(0, 0, 250);
             }}
             width={size.width}
           />
