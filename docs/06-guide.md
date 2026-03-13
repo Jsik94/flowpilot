@@ -95,6 +95,7 @@ pnpm docker:stop
   - `Metadata: Read-only`
   - `Contents: Read-only`
   - `Actions: Read-only`
+- PAT는 브라우저 세션 스토리지에 저장하지 않고 현재 실행 메모리에서만 사용합니다.
 
 중요:
 

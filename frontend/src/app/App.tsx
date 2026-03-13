@@ -136,7 +136,7 @@ export function App() {
         repoUrl: parsed.repoUrl ?? DEFAULT_FORM_STATE.repoUrl,
         repoVisibility: parsed.repoVisibility === 'private' ? 'private' : 'public',
         username: parsed.username ?? '',
-        token: parsed.token ?? '',
+        token: '',
       });
     } catch {
       window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
@@ -190,7 +190,14 @@ export function App() {
 
   function persistFormState(nextState: RepositoryFormState) {
     setFormState(nextState);
-    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextState));
+    window.sessionStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        repoUrl: nextState.repoUrl,
+        repoVisibility: nextState.repoVisibility,
+        username: nextState.username,
+      } satisfies Omit<RepositoryFormState, 'token'>),
+    );
   }
 
   async function loadRepositoryContext(
