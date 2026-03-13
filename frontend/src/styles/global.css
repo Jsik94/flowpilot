@@ -476,7 +476,7 @@ textarea {
 }
 
 .map-overview-panel {
-  min-height: calc(100vh - 380px);
+  min-height: calc(100vh - 470px);
   background:
     radial-gradient(circle at 15% 15%, rgba(91, 209, 165, 0.18), transparent 20%),
     radial-gradient(circle at 85% 20%, rgba(143, 184, 255, 0.18), transparent 22%),
@@ -546,8 +546,8 @@ textarea {
 .workflow-force-container {
   position: relative;
   width: 100%;
-  min-height: 480px;
-  margin-top: 18px;
+  min-height: 430px;
+  margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--lane-border);
   border-radius: 22px;
@@ -936,6 +936,10 @@ textarea {
   margin-top: 8px;
 }
 
+.report-compact-list {
+  margin-top: 12px;
+}
+
 .report-role-item {
   padding: 14px;
   border-radius: 14px;
@@ -951,6 +955,17 @@ textarea {
 .report-role-item p {
   margin: 6px 0 0;
   color: var(--muted);
+}
+
+.report-mini-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.report-mini-list li + li {
+  margin-top: 6px;
 }
 
 .report-workflow-card {
@@ -999,6 +1014,30 @@ textarea {
   line-height: 1.6;
 }
 
+.report-lens-card {
+  display: grid;
+  gap: 14px;
+}
+
+.report-inline-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-inline-link:hover {
+  color: var(--accent);
+}
+
+.report-inline-link:focus-visible {
+  outline: 1px solid var(--active-border);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
 .report-workflow-card:hover,
 .report-finding-card:hover {
   border-color: var(--active-border);
@@ -1029,6 +1068,48 @@ textarea {
   color: var(--text);
   font-family: "SFMono-Regular", "Menlo", monospace;
   font-size: 0.8rem;
+}
+
+.report-deep-dive-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.report-deep-dive-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid var(--item-border);
+  background: linear-gradient(180deg, var(--panel-strong), rgba(255, 255, 255, 0.02));
+}
+
+.report-deep-dive-header,
+.report-deep-dive-metrics,
+.report-workflow-meta-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.report-deep-dive-header {
+  justify-content: space-between;
+}
+
+.report-deep-dive-metrics {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.report-deep-dive-subcard {
+  display: grid;
+  gap: 12px;
+}
+
+.report-open-workflow-button {
+  padding: 10px 14px;
 }
 
 .source-focus-banner {
@@ -1255,7 +1336,7 @@ textarea {
   }
 
   .workflow-force-container {
-    min-height: 420px;
+    min-height: 380px;
   }
 
   .detail-workspace {

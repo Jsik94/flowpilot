@@ -110,10 +110,24 @@ export function buildReviewMarkdown(input: {
       ? ciReview.failureInsights.items
           .map(
             (item) =>
-              `- ${item.workflowName} (${item.fileName}): failures ${item.failureCount}, jobs ${item.latestFailureJobs.join(', ') || 'unknown'}`,
+              `- ${item.workflowName} (${item.fileName}): failures ${item.failureCount}, jobs ${item.latestFailureJobs.join(', ') || 'unknown'}${
+                item.recurringFailedJobs.length
+                  ? `, recurring ${item.recurringFailedJobs.map((failure) => `${failure.jobName}(${failure.count})`).join(', ')}`
+                  : ''
+              }`,
           )
           .join('\n')
       : '- failure snapshot unavailable',
+    '',
+    '## Review Lenses',
+    ciReview?.reviewLenses.length
+      ? ciReview.reviewLenses
+          .map(
+            (lens) =>
+              `- ${lens.label}: ${lens.summary}\n${lens.findings.map((finding) => `  - ${finding.summary}`).join('\n')}`,
+          )
+          .join('\n')
+      : '- review lenses unavailable',
     '',
     '## Workflow Performance',
     ciReview?.workflowCards.length
@@ -124,6 +138,16 @@ export function buildReviewMarkdown(input: {
           )
           .join('\n')
       : '- workflow performance unavailable',
+    '',
+    '## Workflow Deep Dive',
+    ciReview?.workflowDeepDives.length
+      ? ciReview.workflowDeepDives
+          .map(
+            (workflow) =>
+              `- ${workflow.workflowName} (${workflow.fileName})\n  Trigger: ${workflow.triggerSummary}\n  Flow: ${workflow.jobFlowSummary}\n  Failures: ${workflow.failurePatterns.join(' / ')}\n  Notes: ${workflow.analysisSummary}`,
+          )
+          .join('\n')
+      : '- workflow deep dive unavailable',
     '',
     '## Repository Analysis',
     repoInsight?.summary ?? '레포 분석 정보가 아직 없습니다.',

@@ -128,6 +128,13 @@ export function ReviewReportPanel({
             <article className="report-card">
               <span className="detail-label">Recent Failures</span>
               <strong>{report.failureInsights.summary}</strong>
+              {report.failureInsights.patterns.length > 0 ? (
+                <ul className="report-bullet-list report-compact-list">
+                  {report.failureInsights.patterns.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : null}
               {report.failureInsights.items.length > 0 ? (
                 <div className="report-role-list">
                   {report.failureInsights.items.map((item) => (
@@ -140,6 +147,20 @@ export function ReviewReportPanel({
                           ? `실패 job: ${item.latestFailureJobs.join(', ')}`
                           : '최근 실패 job 상세 없음'}
                       </p>
+                      {item.recurringFailedJobs.length > 0 ? (
+                        <p>
+                          반복 실패: {item.recurringFailedJobs.map((failure) => `${failure.jobName}(${failure.count})`).join(', ')}
+                        </p>
+                      ) : null}
+                      {item.recentFailures.length > 0 ? (
+                        <ul className="report-mini-list">
+                          {item.recentFailures.map((failure) => (
+                            <li key={`${item.fileName}-${failure.runNumber}`}>
+                              #{failure.runNumber} {failure.title} · {failure.failedJobs.join(', ') || '실패 job 미상'}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -301,8 +322,42 @@ export function ReviewReportPanel({
           <section className="report-section">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Review Lenses</p>
+                <h2>관점별 핵심 포인트</h2>
+              </div>
+            </div>
+
+            <div className="report-category-grid">
+              {report.reviewLenses.map((lens) => (
+                <article key={lens.key} className="report-category-card report-lens-card">
+                  <div className="report-category-top">
+                    <strong>{lens.label}</strong>
+                    <span className="badge">{lens.findings.length} findings</span>
+                  </div>
+                  <p>{lens.summary}</p>
+                  <ul className="report-bullet-list report-compact-list">
+                    {lens.findings.map((finding) => (
+                      <li key={finding.id}>
+                        <button
+                          className="report-inline-link"
+                          onClick={() => onSelectFinding(finding)}
+                          type="button"
+                        >
+                          {finding.summary}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">Workflow Cards</p>
-                <h2>workflow별 읽기 포인트</h2>
+                <h2>workflow별 빠른 스냅샷</h2>
               </div>
             </div>
 
@@ -331,6 +386,82 @@ export function ReviewReportPanel({
                   <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
                   <p>{workflow.headline}</p>
                 </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Workflow Deep Dive</p>
+                <h2>workflow별 상세 분석</h2>
+              </div>
+            </div>
+
+            <div className="report-deep-dive-list">
+              {report.workflowDeepDives.map((workflow) => (
+                <article key={workflow.fileName} className="report-deep-dive-card">
+                  <div className="report-deep-dive-header">
+                    <div>
+                      <strong>{workflow.workflowName}</strong>
+                      <p className="issue-target">{workflow.fileName}</p>
+                    </div>
+                    <div className="report-workflow-meta-pill-group">
+                      <span className="badge">{workflow.phaseLabel}</span>
+                      <button
+                        className="button button-secondary report-open-workflow-button"
+                        onClick={() => onSelectWorkflow(workflow.fileName)}
+                        type="button"
+                      >
+                        Open workflow
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="report-deep-dive-metrics">
+                    <span>{workflow.triggerSummary}</span>
+                    <span>{workflow.estimatedDurationText}</span>
+                    <span>{workflow.failureText}</span>
+                  </div>
+
+                  <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
+                  <p>{workflow.headline}</p>
+                  <p>{workflow.jobFlowSummary}</p>
+
+                  <div className="report-role-grid">
+                    <div className="report-card report-deep-dive-subcard">
+                      <span className="detail-label">Failure Patterns</span>
+                      <strong>반복 실패/위험 패턴</strong>
+                      <ul className="report-bullet-list report-compact-list">
+                        {workflow.failurePatterns.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="report-card report-deep-dive-subcard">
+                      <span className="detail-label">Top Findings</span>
+                      <strong>이 workflow에서 먼저 볼 포인트</strong>
+                      {workflow.topFindings.length > 0 ? (
+                        <ul className="report-bullet-list report-compact-list">
+                          {workflow.topFindings.map((finding) => (
+                            <li key={finding.id}>
+                              <button
+                                className="report-inline-link"
+                                onClick={() => onSelectFinding(finding)}
+                                type="button"
+                              >
+                                {finding.summary}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>현재 workflow 단위에서 뚜렷한 경고는 많지 않습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
           </section>

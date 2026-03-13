@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import type { GraphEdge, WorkflowMap, WorkflowMapNode } from '../../../types';
+import type { GraphEdge, WorkflowDiagnostic, WorkflowMap, WorkflowMapNode } from '../../../types';
 
 type WorkflowMapPanelProps = {
   map: WorkflowMap | null;
   loading: boolean;
+  diagnostics: Record<string, WorkflowDiagnostic>;
   selectedId: string;
   onSelect: (workflowId: string) => void;
 };
@@ -21,6 +22,7 @@ type ForceLink = GraphEdge & {
 export function WorkflowMapPanel({
   map,
   loading,
+  diagnostics,
   selectedId,
   onSelect,
 }: WorkflowMapPanelProps) {
@@ -88,7 +90,7 @@ export function WorkflowMapPanel({
     graph.d3Force('y')?.y?.((node: ForceNode) => size.height / 2 + (node.level - 1) * 90);
 
     const alignToCenter = window.setTimeout(() => {
-      graph.zoomToFit(500, 28);
+      graph.zoomToFit(500, 14);
       graph.centerAt(0, 0, 350);
     }, 60);
 
@@ -146,7 +148,10 @@ export function WorkflowMapPanel({
               const isSelected = workflowNode.id === selectedId;
               const fontSize = Math.max(10, 15 / globalScale);
               const subFontSize = Math.max(8, 11 / globalScale);
+              const metaFontSize = Math.max(7.5, 9.5 / globalScale);
               const phaseColor = getPhaseColor(workflowNode.phaseLabel);
+              const diagnostic = diagnostics[workflowNode.id];
+              const diagnosticLabel = buildNodeDiagnosticLabel(diagnostic);
 
               ctx.save();
               ctx.beginPath();
@@ -168,15 +173,25 @@ export function WorkflowMapPanel({
               ctx.font = `400 ${subFontSize}px "Avenir Next", sans-serif`;
               ctx.fillStyle = 'rgba(153, 171, 198, 0.92)';
               ctx.fillText(fileName, node.x ?? 0, (node.y ?? 0) + 34);
+
+              if (diagnosticLabel) {
+                ctx.font = `500 ${metaFontSize}px "Avenir Next", sans-serif`;
+                ctx.fillStyle = diagnostic?.failureCount
+                  ? 'rgba(255, 173, 182, 0.94)'
+                  : 'rgba(143, 184, 255, 0.86)';
+                ctx.fillText(diagnosticLabel, node.x ?? 0, (node.y ?? 0) + 47);
+              }
             }}
             nodePointerAreaPaint={(node, color, ctx, globalScale) => {
               const workflowNode = node as ForceNode;
               const label = workflowNode.workflowName;
               const fileName = workflowNode.fileName;
+              const diagnosticLabel = buildNodeDiagnosticLabel(diagnostics[workflowNode.id]);
               const x = node.x ?? 0;
               const y = node.y ?? 0;
               const fontSize = Math.max(10, 15 / globalScale);
               const subFontSize = Math.max(8, 11 / globalScale);
+              const metaFontSize = Math.max(7.5, 9.5 / globalScale);
 
               ctx.fillStyle = color;
               ctx.beginPath();
@@ -187,14 +202,26 @@ export function WorkflowMapPanel({
               const labelWidth = ctx.measureText(label).width;
               ctx.font = `400 ${subFontSize}px "Avenir Next", sans-serif`;
               const fileWidth = ctx.measureText(fileName).width;
-              const hitWidth = Math.max(labelWidth, fileWidth) + 18;
-              const hitHeight = fontSize + subFontSize + 18;
+              ctx.font = `500 ${metaFontSize}px "Avenir Next", sans-serif`;
+              const metaWidth = diagnosticLabel ? ctx.measureText(diagnosticLabel).width : 0;
+              const hitWidth = Math.max(labelWidth, fileWidth, metaWidth) + 18;
+              const hitHeight = fontSize + subFontSize + (diagnosticLabel ? metaFontSize + 10 : 0) + 18;
 
               ctx.fillRect(x - hitWidth / 2, y + 8, hitWidth, hitHeight);
             }}
             nodeLabel={(node) => {
               const workflowNode = node as ForceNode;
-              return `${workflowNode.workflowName}\n${getMergeMarkerLabel(workflowNode.phaseLabel)}\n${workflowNode.fileName}\n${workflowNode.triggers.join(', ')}`;
+              const diagnostic = diagnostics[workflowNode.id];
+              const diagnosticText = buildNodeDiagnosticLabel(diagnostic);
+              return [
+                workflowNode.workflowName,
+                getMergeMarkerLabel(workflowNode.phaseLabel),
+                workflowNode.fileName,
+                workflowNode.triggers.join(', '),
+                diagnosticText,
+              ]
+                .filter(Boolean)
+                .join('\n');
             }}
             nodeRelSize={6}
             onNodeClick={(node) => {
@@ -206,7 +233,7 @@ export function WorkflowMapPanel({
                 return;
               }
 
-              graph.zoomToFit(350, 28);
+              graph.zoomToFit(350, 14);
               graph.centerAt(0, 0, 250);
             }}
             width={size.width}
@@ -215,6 +242,16 @@ export function WorkflowMapPanel({
       </div>
     </section>
   );
+}
+
+function buildNodeDiagnosticLabel(diagnostic?: WorkflowDiagnostic) {
+  if (!diagnostic) {
+    return '';
+  }
+
+  const duration = diagnostic.estimatedDurationMinutes != null ? `~${diagnostic.estimatedDurationMinutes}m` : null;
+  const failure = diagnostic.failureCount > 0 ? `fail ${diagnostic.failureCount}` : 'stable';
+  return [duration, failure].filter(Boolean).join(' · ');
 }
 
 function getPhaseColor(phaseLabel: string) {

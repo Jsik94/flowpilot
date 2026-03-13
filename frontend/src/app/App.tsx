@@ -221,6 +221,108 @@ export function App() {
     return jobs;
   }
 
+  async function collectWorkflowDiagnostic(
+    workflow: WorkflowSummary,
+    preview: WorkflowPreview,
+    options?: {
+      branch?: string;
+      token?: string;
+      repositoryRef?: RepositoryRef;
+      runs?: RunSummary[];
+      latestRunJobs?: RunJobSummary[];
+    },
+  ): Promise<WorkflowDiagnostic> {
+    const repositoryRef = options?.repositoryRef ?? repository;
+    const branchName = options?.branch ?? selectedBranch;
+    const token = options?.token ?? formState.token;
+
+    if (!repositoryRef || !branchName) {
+      return {
+        workflowId: workflow.id,
+        workflowName: preview.workflowName,
+        fileName: preview.fileName,
+        runs: [],
+        latestRunJobs: [],
+        analysis: null,
+        estimatedDurationMinutes: estimateWorkflowDuration([], buildWorkflowGraph(preview.content, preview.workflowName)),
+        failureCount: 0,
+        latestFailureJobs: [],
+        failureRuns: [],
+        recurringFailedJobs: [],
+      };
+    }
+
+    const graph = buildWorkflowGraph(preview.content, preview.workflowName);
+    const runs = options?.runs ?? await fetchWorkflowRuns(repositoryRef, workflow.fileName, branchName, token);
+    const latestRun = runs[0] ?? null;
+    const latestRunJobs =
+      options?.latestRunJobs ??
+      (latestRun ? await fetchRunJobs(repositoryRef, latestRun.id, token) : []);
+    const jobsCache = new Map<number, RunJobSummary[]>();
+
+    if (latestRun) {
+      jobsCache.set(latestRun.id, latestRunJobs);
+    }
+
+    const failureRuns: WorkflowDiagnostic['failureRuns'] = [];
+    const recurringFailedJobs = new Map<string, number>();
+    const failedRuns = runs.filter((run) => run.status === 'failure').slice(0, 3);
+
+    for (const failedRun of failedRuns) {
+      const failedRunJobs =
+        jobsCache.get(failedRun.id) ??
+        (await fetchRunJobs(repositoryRef, failedRun.id, token));
+
+      jobsCache.set(failedRun.id, failedRunJobs);
+
+      const failedJobNames = failedRunJobs
+        .filter((job) => job.status === 'failure')
+        .map((job) => job.name);
+
+      for (const jobName of failedJobNames) {
+        recurringFailedJobs.set(jobName, (recurringFailedJobs.get(jobName) ?? 0) + 1);
+      }
+
+      failureRuns.push({
+        runId: failedRun.id,
+        runNumber: failedRun.runNumber,
+        title: failedRun.title,
+        startedAt: failedRun.startedAt,
+        durationMinutes: failedRun.durationMinutes,
+        event: failedRun.event,
+        failedJobs: failedJobNames,
+      });
+    }
+
+    const analysis = await analyzeWorkflow({
+      repository: {
+        owner: repositoryRef.owner,
+        repo: repositoryRef.repo,
+      },
+      branch: branchName,
+      preview,
+      runs,
+      runJobs: latestRunJobs,
+    }).catch(() => null);
+
+    return {
+      workflowId: workflow.id,
+      workflowName: preview.workflowName,
+      fileName: preview.fileName,
+      runs,
+      latestRunJobs,
+      analysis,
+      estimatedDurationMinutes: estimateWorkflowDuration(runs, graph),
+      failureCount: runs.filter((run) => run.status === 'failure').length,
+      latestFailureJobs: latestRunJobs.filter((job) => job.status === 'failure').map((job) => job.name),
+      failureRuns,
+      recurringFailedJobs: [...recurringFailedJobs.entries()]
+        .map(([jobName, count]) => ({ jobName, count }))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 5),
+    };
+  }
+
   async function runWorkflowSummary(
     preview: WorkflowPreview,
     runs: RunSummary[],
@@ -262,49 +364,6 @@ export function App() {
     }
   }
 
-  async function loadWorkflowRunsForSelection(
-    workflow: WorkflowSummary,
-  ): Promise<{ runs: RunSummary[]; jobs: RunJobSummary[] }> {
-    if (!repository || !selectedBranch) {
-      setWorkflowRuns([]);
-      setSelectedRunId(null);
-      setSelectedRunJobs([]);
-      return { runs: [], jobs: [] };
-    }
-
-    setRunLoading(true);
-    setAnalysisResult(null);
-
-    try {
-      const runs = await fetchWorkflowRuns(repository, workflow.fileName, selectedBranch, formState.token);
-      setWorkflowRuns(runs);
-
-      const firstRun = runs[0] ?? null;
-      setSelectedRunId(firstRun?.id ?? null);
-
-      if (firstRun) {
-        const jobs = await loadRunJobs(firstRun.id);
-        return { runs, jobs };
-      } else {
-        setSelectedRunJobs([]);
-        return { runs, jobs: [] };
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? mapLoadError(error.message)
-          : '실행 이력을 불러오지 못했습니다.';
-
-      setErrorMessage(message);
-      setWorkflowRuns([]);
-      setSelectedRunId(null);
-      setSelectedRunJobs([]);
-      return { runs: [], jobs: [] };
-    } finally {
-      setRunLoading(false);
-    }
-  }
-
   async function applySelectedWorkflow(
     workflowId: string,
     items: WorkflowSummary[],
@@ -333,19 +392,32 @@ export function App() {
       return;
     }
 
-    const { runs, jobs } = await loadWorkflowRunsForSelection(selected);
-    const analysis = await runWorkflowSummary(preview, runs, jobs, workflowId);
-    upsertWorkflowDiagnostic({
-      workflowId,
-      workflowName: preview.workflowName,
-      fileName: preview.fileName,
-      runs,
-      latestRunJobs: jobs,
-      analysis: analysis ?? null,
-      estimatedDurationMinutes: estimateWorkflowDuration(runs, graph),
-      failureCount: runs.filter((run) => run.status === 'failure').length,
-      latestFailureJobs: jobs.filter((job) => job.status === 'failure').map((job) => job.name),
-    });
+    setRunLoading(true);
+    setAnalysisLoading(true);
+    setAnalysisResult(null);
+
+    try {
+      const diagnostic = await collectWorkflowDiagnostic(selected, preview);
+      setWorkflowRuns(diagnostic.runs);
+      setSelectedRunId(diagnostic.runs[0]?.id ?? null);
+      setSelectedRunJobs(diagnostic.latestRunJobs);
+      setAnalysisResult(diagnostic.analysis);
+      upsertWorkflowDiagnostic(diagnostic);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? mapLoadError(error.message)
+          : '실행 이력을 불러오지 못했습니다.';
+
+      setErrorMessage(message);
+      setWorkflowRuns([]);
+      setSelectedRunId(null);
+      setSelectedRunJobs([]);
+      setAnalysisResult(null);
+    } finally {
+      setRunLoading(false);
+      setAnalysisLoading(false);
+    }
   }
 
   async function analyzeBranchDiagnostics(
@@ -371,31 +443,12 @@ export function App() {
           total: summaries.length,
         });
 
-        const runs = await fetchWorkflowRuns(repoRef, workflow.fileName, branch, token);
-        const latestRun = runs[0] ?? null;
-        const runJobs = latestRun ? await fetchRunJobs(repoRef, latestRun.id, token) : [];
-        const analysis = await analyzeWorkflow({
-          repository: {
-            owner: repoRef.owner,
-            repo: repoRef.repo,
-          },
+        const diagnostic = await collectWorkflowDiagnostic(workflow, preview, {
+          repositoryRef: repoRef,
           branch,
-          preview,
-          runs,
-          runJobs,
-        }).catch(() => null);
-
-        upsertWorkflowDiagnostic({
-          workflowId: workflow.id,
-          workflowName: preview.workflowName,
-          fileName: preview.fileName,
-          runs,
-          latestRunJobs: runJobs,
-          analysis,
-          estimatedDurationMinutes: estimateWorkflowDuration(runs, buildWorkflowGraph(preview.content, preview.workflowName)),
-          failureCount: runs.filter((run) => run.status === 'failure').length,
-          latestFailureJobs: runJobs.filter((job) => job.status === 'failure').map((job) => job.name),
+          token,
         });
+        upsertWorkflowDiagnostic(diagnostic);
       }
     } finally {
       setBranchAnalysisLoading(false);
@@ -687,6 +740,7 @@ export function App() {
 
       <main className="workspace-layout">
         <WorkflowMapPanel
+          diagnostics={workflowDiagnostics}
           loading={repositoryLoading || workflowLoading}
           map={workflowMap}
           onSelect={handleSelectWorkflow}

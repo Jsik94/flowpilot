@@ -166,6 +166,19 @@ export type WorkflowDiagnostic = {
   estimatedDurationMinutes: number | null;
   failureCount: number;
   latestFailureJobs: string[];
+  failureRuns: Array<{
+    runId: number;
+    runNumber: number;
+    title: string;
+    startedAt: string;
+    durationMinutes: number | null;
+    event: string;
+    failedJobs: string[];
+  }>;
+  recurringFailedJobs: Array<{
+    jobName: string;
+    count: number;
+  }>;
 };
 
 export type CiReviewFinding = {
@@ -243,13 +256,36 @@ export type CiReviewReport = {
   };
   failureInsights: {
     summary: string;
+    patterns: string[];
     items: Array<{
       workflowName: string;
       fileName: string;
       failureCount: number;
       latestFailureJobs: string[];
+      recurringFailedJobs: Array<{
+        jobName: string;
+        count: number;
+      }>;
+      recentFailures: Array<{
+        runNumber: number;
+        title: string;
+        failedJobs: string[];
+      }>;
     }>;
   };
+  reviewLenses: Array<{
+    key:
+      | 'security'
+      | 'reliability'
+      | 'performance'
+      | 'maintainability'
+      | 'coverage'
+      | 'duplication'
+      | 'latency';
+    label: string;
+    summary: string;
+    findings: CiReviewFinding[];
+  }>;
   workflowCards: Array<{
     workflowName: string;
     fileName: string;
@@ -261,6 +297,19 @@ export type CiReviewReport = {
     estimatedDurationText: string;
     failureText: string;
     analysisSummary: string;
+  }>;
+  workflowDeepDives: Array<{
+    workflowName: string;
+    fileName: string;
+    triggerSummary: string;
+    phaseLabel: string;
+    headline: string;
+    estimatedDurationText: string;
+    failureText: string;
+    analysisSummary: string;
+    jobFlowSummary: string;
+    failurePatterns: string[];
+    topFindings: CiReviewFinding[];
   }>;
   findings: CiReviewFinding[];
 };

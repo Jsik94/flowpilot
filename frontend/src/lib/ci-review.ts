@@ -158,6 +158,9 @@ export function buildCiReviewReport({
   const watchouts = dedupedFindings.slice(0, 3).map((finding) => finding.summary);
   const quickWins = dedupeStrings(dedupedFindings.slice(0, 4).map((finding) => finding.recommendation)).slice(0, 4);
   const optimizationInsights = buildOptimizationInsights(assessments, roleAnalysis);
+  const failureInsights = buildFailureInsights(diagnostics);
+  const reviewLenses = buildReviewLenses(dedupedFindings, categoryScores);
+  const workflowDeepDives = buildWorkflowDeepDives(assessments, diagnostics, dedupedFindings);
 
   return {
     headline: buildHeadline(score),
@@ -198,7 +201,8 @@ export function buildCiReviewReport({
     },
     roleAnalysis,
     optimizationInsights,
-    failureInsights: buildFailureInsights(diagnostics),
+    failureInsights,
+    reviewLenses,
     workflowCards: assessments
       .map((assessment) => {
         const diagnostic = diagnostics[assessment.preview.path];
@@ -214,20 +218,15 @@ export function buildCiReviewReport({
           jobCount: assessment.graph.jobs.length,
           riskCount: assessment.findings.filter((finding) => finding.severity !== 'info').length,
           headline: buildWorkflowCardHeadline(assessment),
-          estimatedDurationText:
-            diagnostic?.estimatedDurationMinutes != null
-              ? `예상 ${diagnostic.estimatedDurationMinutes}분`
-              : '예상 시간 정보 없음',
-          failureText:
-            diagnostic && diagnostic.failureCount > 0
-              ? `최근 실패 ${diagnostic.failureCount}건 · ${diagnostic.latestFailureJobs.join(', ') || '실패 job 확인 필요'}`
-              : '최근 실패 없음',
+          estimatedDurationText: formatEstimatedDurationText(diagnostic),
+          failureText: formatFailureText(diagnostic),
           analysisSummary:
             diagnostic?.analysis?.summary ?? '세부 분석 요약이 아직 없습니다.',
         };
       })
       .sort((left, right) => right.riskCount - left.riskCount)
       .slice(0, 8),
+    workflowDeepDives,
     findings: dedupedFindings,
   };
 }
@@ -813,16 +812,144 @@ function buildFailureInsights(diagnostics: Record<string, WorkflowDiagnostic>) {
       fileName: diagnostic.fileName,
       failureCount: diagnostic.failureCount,
       latestFailureJobs: diagnostic.latestFailureJobs,
+      recurringFailedJobs: diagnostic.recurringFailedJobs,
+      recentFailures: diagnostic.failureRuns.map((failureRun) => ({
+        runNumber: failureRun.runNumber,
+        title: failureRun.title,
+        failedJobs: failureRun.failedJobs,
+      })),
     }))
     .slice(0, 6);
+
+  const recurringPatterns: Array<[string, number]> = [];
+
+  for (const diagnostic of Object.values(diagnostics)) {
+    for (const failure of diagnostic.recurringFailedJobs) {
+      const key = failure.jobName;
+      const current = recurringPatterns.find(([jobName]) => jobName === key);
+      if (current) {
+        current[1] += failure.count;
+        continue;
+      }
+
+      recurringPatterns.push([key, failure.count]);
+    }
+  }
+
+  const patterns = recurringPatterns
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 4)
+    .map(([jobName, count]) => `${jobName} job이 최근 실패 흐름에서 ${count}회 반복적으로 나타납니다.`);
 
   return {
     summary:
       items.length > 0
         ? `현재 브랜치 기준으로 최근 실패가 관찰된 workflow ${items.length}개를 우선 정리했습니다.`
         : '현재 브랜치 기준으로 최근 실패가 뚜렷하게 관찰된 workflow는 많지 않습니다.',
+    patterns,
     items,
   };
+}
+
+function buildReviewLenses(
+  findings: CiReviewFinding[],
+  categoryScores: CiReviewReport['categoryScores'],
+): CiReviewReport['reviewLenses'] {
+  return categoryScores
+    .map((category) => {
+      const relatedFindings = findings.filter((finding) => finding.category === category.key);
+
+      return {
+        key: category.key,
+        label: category.label,
+        summary: category.summary,
+        findings: relatedFindings.slice(0, 3),
+      };
+    })
+    .filter((lens) => lens.findings.length > 0);
+}
+
+function buildWorkflowDeepDives(
+  assessments: WorkflowAssessment[],
+  diagnostics: Record<string, WorkflowDiagnostic>,
+  findings: CiReviewFinding[],
+): CiReviewReport['workflowDeepDives'] {
+  return assessments
+    .map((assessment) => {
+      const diagnostic = diagnostics[assessment.preview.path];
+      const relatedFindings = findings.filter(
+        (finding) =>
+          finding.filePath === assessment.preview.path ||
+          finding.workflowName === assessment.preview.workflowName,
+      );
+
+      return {
+        workflowName: assessment.preview.workflowName,
+        fileName: assessment.preview.fileName,
+        triggerSummary:
+          assessment.meta.triggers.length > 0
+            ? assessment.meta.triggers.map(formatTrigger).join(', ')
+            : 'trigger 정보 없음',
+        phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+        headline: buildWorkflowCardHeadline(assessment),
+        estimatedDurationText: formatEstimatedDurationText(diagnostic),
+        failureText: formatFailureText(diagnostic),
+        analysisSummary: diagnostic?.analysis?.summary ?? '세부 분석 요약이 아직 없습니다.',
+        jobFlowSummary: describeJobFlow(assessment),
+        failurePatterns:
+          diagnostic && (diagnostic.recurringFailedJobs.length > 0 || diagnostic.failureRuns.length > 0)
+            ? [
+                ...diagnostic.recurringFailedJobs.map(
+                  (failure) => `${failure.jobName} job이 최근 실패 흐름에서 ${failure.count}회 반복되었습니다.`,
+                ),
+                ...diagnostic.failureRuns.slice(0, 2).map(
+                  (failureRun) =>
+                    `#${failureRun.runNumber} ${failureRun.event} 실행에서 ${failureRun.failedJobs.join(', ') || '실패 job 미상'} 이슈가 있었습니다.`,
+                ),
+              ].slice(0, 4)
+            : ['최근 반복 실패 패턴은 두드러지지 않습니다.'],
+        topFindings: relatedFindings.slice(0, 3),
+      };
+    })
+    .sort((left, right) => {
+      const leftRisk = left.topFindings.filter((finding) => finding.severity !== 'info').length;
+      const rightRisk = right.topFindings.filter((finding) => finding.severity !== 'info').length;
+
+      if (rightRisk !== leftRisk) {
+        return rightRisk - leftRisk;
+      }
+
+      return right.failurePatterns.length - left.failurePatterns.length;
+    })
+    .slice(0, 8);
+}
+
+function formatEstimatedDurationText(diagnostic?: WorkflowDiagnostic) {
+  return diagnostic?.estimatedDurationMinutes != null
+    ? `예상 ${diagnostic.estimatedDurationMinutes}분`
+    : '예상 시간 정보 없음';
+}
+
+function formatFailureText(diagnostic?: WorkflowDiagnostic) {
+  if (!diagnostic || diagnostic.failureCount === 0) {
+    return '최근 실패 없음';
+  }
+
+  const failedJobs = diagnostic.latestFailureJobs.join(', ');
+  return `최근 실패 ${diagnostic.failureCount}건 · ${failedJobs || '실패 job 확인 필요'}`;
+}
+
+function describeJobFlow(assessment: WorkflowAssessment) {
+  const roots = assessment.graph.jobs.filter((job) => job.needs.length === 0).map((job) => job.title);
+  const tail = [...assessment.graph.jobs]
+    .sort((left, right) => right.level - left.level)
+    .slice(0, 2)
+    .map((job) => job.title);
+
+  const rootLabel = roots.length > 0 ? roots.join(', ') : '시작 job 미상';
+  const tailLabel = tail.length > 0 ? tail.join(', ') : '후행 job 미상';
+
+  return `${assessment.graph.jobs.length}개 job, longest chain ${assessment.longestChain}단계입니다. 시작은 ${rootLabel}이고 후행 흐름은 ${tailLabel} 중심으로 읽을 수 있습니다.`;
 }
 
 function classifyWorkflowRoles(assessment: WorkflowAssessment) {

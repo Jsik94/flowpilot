@@ -103,6 +103,23 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
         estimatedDurationMinutes: 6.4,
         failureCount: 2,
         latestFailureJobs: ['build'],
+        failureRuns: [
+          {
+            runId: 1,
+            runNumber: 12,
+            title: 'CI failure',
+            startedAt: '2026-03-13T00:00:00Z',
+            durationMinutes: 6.4,
+            event: 'pull_request',
+            failedJobs: ['build'],
+          },
+        ],
+        recurringFailedJobs: [
+          {
+            jobName: 'build',
+            count: 2,
+          },
+        ],
       },
     },
   });
@@ -115,4 +132,7 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
     ),
   );
   assert.ok(report.failureInsights.items.length > 0);
+  assert.ok(report.failureInsights.patterns.length > 0);
+  assert.ok(report.reviewLenses.length > 0);
+  assert.ok(report.workflowDeepDives.length > 0);
 });
