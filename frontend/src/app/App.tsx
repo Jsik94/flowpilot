@@ -201,7 +201,7 @@ export function App() {
       total: 1,
     });
 
-    const [entries, packageJsonText, readmeText, defaultBranchWorkflows] = await Promise.all([
+    const [entriesResult, packageJsonResult, readmeResult, defaultBranchWorkflowsResult] = await Promise.allSettled([
       fetchRepositoryTreeEntries(repoRef, branch, token),
       fetchOptionalRepositoryFileText(repoRef, 'package.json', branch, token),
       fetchOptionalRepositoryFileText(repoRef, 'README.md', branch, token),
@@ -209,6 +209,14 @@ export function App() {
         ? Promise.resolve(currentWorkflows)
         : fetchWorkflowSummaries(repoRef, repoRef.defaultBranch, token),
     ]);
+
+    const entries = entriesResult.status === 'fulfilled' ? entriesResult.value : [];
+    const packageJsonText = packageJsonResult.status === 'fulfilled' ? packageJsonResult.value : null;
+    const readmeText = readmeResult.status === 'fulfilled' ? readmeResult.value : null;
+    const defaultBranchWorkflows =
+      defaultBranchWorkflowsResult.status === 'fulfilled'
+        ? defaultBranchWorkflowsResult.value
+        : currentWorkflows;
 
     setRepoInsight(buildRepoInsight(entries, packageJsonText, readmeText));
     setBranchComparison(
