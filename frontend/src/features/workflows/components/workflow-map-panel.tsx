@@ -10,6 +10,8 @@ type WorkflowMapPanelProps = {
   onSelect: (workflowId: string) => void;
 };
 
+type WorkflowMapFilter = 'all' | 'pre-merge' | 'post-merge' | 'manual';
+
 type ForceNode = WorkflowMapNode & {
   id: string;
 };
@@ -29,6 +31,7 @@ export function WorkflowMapPanel({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<any>(undefined);
   const [size, setSize] = useState({ width: 960, height: 560 });
+  const [filter, setFilter] = useState<WorkflowMapFilter>('all');
 
   useEffect(() => {
     const element = containerRef.current;
@@ -57,17 +60,63 @@ export function WorkflowMapPanel({
   const graphData = useMemo(
     () =>
       map
-        ? {
-            nodes: map.nodes.map((node) => ({ ...node })) as ForceNode[],
-            links: map.edges.map<ForceLink>((edge) => ({
-              ...edge,
-              source: edge.from,
-              target: edge.to,
-            })),
-          }
+        ? buildFilteredGraphData(map, filter)
         : { nodes: [], links: [] },
-    [map],
+    [filter, map],
   );
+
+  const visibleWorkflowCount = graphData.nodes.length;
+
+  useEffect(() => {
+    if (!map) {
+      setFilter('all');
+      return;
+    }
+
+    if (filter === 'all') {
+      return;
+    }
+
+    const hasVisibleSelected = map.nodes.some(
+      (node) => node.id === selectedId && matchesFilter(node, filter),
+    );
+
+    if (!hasVisibleSelected && selectedId) {
+      return;
+    }
+  }, [filter, map, selectedId]);
+
+  useEffect(() => {
+    if (filter === 'all') {
+      return;
+    }
+
+    const selectedNode = graphData.nodes.find((node) => node.id === selectedId);
+    if (!selectedNode && selectedId) {
+      setFilter('all');
+    }
+  }, [filter, graphData.nodes, selectedId]);
+
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+
+    const visibleIds = new Set(graphData.nodes.map((node) => node.id));
+    if (selectedId && !visibleIds.has(selectedId)) {
+      setFilter('all');
+    }
+  }, [graphData.nodes, map, selectedId]);
+
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+
+    if (filter !== 'all' && graphData.nodes.length === 0) {
+      setFilter('all');
+    }
+  }, [filter, graphData.nodes.length, map]);
 
   useEffect(() => {
     const graph = graphRef.current;
@@ -82,7 +131,7 @@ export function WorkflowMapPanel({
     );
     graph.d3Force('x')?.strength?.(0.1);
     graph.d3Force('x')?.x?.((node: ForceNode) => {
-      const maxOrder = Math.max(1, ...map.nodes.map((item) => item.phaseOrder));
+      const maxOrder = Math.max(1, ...graphData.nodes.map((item) => item.phaseOrder));
       const segment = size.width / (maxOrder + 2);
       return segment * (node.phaseOrder + 1);
     });
@@ -107,19 +156,51 @@ export function WorkflowMapPanel({
           <p className="map-panel-subtitle">현재 워크플로우를 시각화한 예시입니다.</p>
         </div>
         <div className="map-panel-actions">
-          {map ? <span className="badge">{map.nodes.length} workflows</span> : null}
+          {map ? (
+            <span className="badge">
+              {visibleWorkflowCount}/{map.nodes.length} workflows
+            </span>
+          ) : null}
         </div>
       </div>
 
       <div className="map-legend-row">
-        <span className="legend-chip"><span className="legend-dot legend-pre-merge-dot" /> 머지 이전</span>
-        <span className="legend-chip"><span className="legend-dot legend-post-merge-dot" /> 머지 이후</span>
-        <span className="legend-chip"><span className="legend-dot legend-manual-dot" /> 수동/기타</span>
+        <button
+          className={`legend-chip legend-chip-button ${filter === 'all' ? 'is-active' : ''}`}
+          onClick={() => setFilter('all')}
+          type="button"
+        >
+          전체
+        </button>
+        <button
+          className={`legend-chip legend-chip-button ${filter === 'pre-merge' ? 'is-active' : ''}`}
+          onClick={() => setFilter('pre-merge')}
+          type="button"
+        >
+          <span className="legend-dot legend-pre-merge-dot" /> 머지 이전
+        </button>
+        <button
+          className={`legend-chip legend-chip-button ${filter === 'post-merge' ? 'is-active' : ''}`}
+          onClick={() => setFilter('post-merge')}
+          type="button"
+        >
+          <span className="legend-dot legend-post-merge-dot" /> 머지 이후
+        </button>
+        <button
+          className={`legend-chip legend-chip-button ${filter === 'manual' ? 'is-active' : ''}`}
+          onClick={() => setFilter('manual')}
+          type="button"
+        >
+          <span className="legend-dot legend-manual-dot" /> 수동/기타
+        </button>
       </div>
 
       {loading ? <p className="empty-state">브랜치 기준으로 워크플로우를 스캔하는 중입니다.</p> : null}
       {!loading && !map ? (
         <p className="empty-state">브랜치를 선택하면 워크플로우 전반 흐름이 표시됩니다.</p>
+      ) : null}
+      {!loading && map && graphData.nodes.length === 0 ? (
+        <p className="empty-state">선택한 필터에 해당하는 workflow가 없습니다. `전체`를 눌러 다시 확인하세요.</p>
       ) : null}
 
       <div ref={containerRef} className="workflow-force-container">
@@ -240,6 +321,44 @@ export function WorkflowMapPanel({
       </div>
     </section>
   );
+}
+
+function buildFilteredGraphData(map: WorkflowMap, filter: WorkflowMapFilter) {
+  const nodes = map.nodes
+    .filter((node) => matchesFilter(node, filter))
+    .map((node) => ({ ...node })) as ForceNode[];
+  const visibleIds = new Set(nodes.map((node) => node.id));
+
+  const links = map.edges
+    .filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to))
+    .map<ForceLink>((edge) => ({
+              ...edge,
+              source: edge.from,
+              target: edge.to,
+            }));
+
+  return { nodes, links };
+}
+
+function matchesFilter(node: WorkflowMapNode, filter: WorkflowMapFilter) {
+  if (filter === 'all') {
+    return true;
+  }
+
+  return getPhaseGroup(node.phaseLabel) === filter;
+}
+
+function getPhaseGroup(phaseLabel: string): Exclude<WorkflowMapFilter, 'all'> {
+  switch (phaseLabel) {
+    case 'PR':
+      return 'pre-merge';
+    case 'Push':
+    case 'Pipeline':
+    case 'Release':
+      return 'post-merge';
+    default:
+      return 'manual';
+  }
 }
 
 function buildNodeDiagnosticLabel(diagnostic?: WorkflowDiagnostic) {

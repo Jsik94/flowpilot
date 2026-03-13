@@ -700,6 +700,16 @@ textarea {
   font-size: 0.76rem;
 }
 
+.legend-chip-button {
+  cursor: pointer;
+}
+
+.legend-chip-button.is-active {
+  border-color: var(--active-border);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--active-shadow);
+}
+
 .legend-dot {
   display: inline-block;
   width: 10px;
