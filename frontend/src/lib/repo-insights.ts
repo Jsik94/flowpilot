@@ -135,8 +135,10 @@ export function buildReviewMarkdown(input: {
           .map(
             (issue) =>
               `- [${issue.severity}] ${issue.summary}${issue.workflowName ? ` (${issue.workflowName})` : ''}${
-                issue.filePath ? ` [${issue.filePath}${issue.line ? `:${issue.line}` : ''}]` : ''
-              }\n  ${issue.impact ? `영향: ${issue.impact}\n  ` : ''}${issue.evidence ? `근거: ${issue.evidence}\n  ` : ''}${issue.recommendation}`,
+                issue.filePath
+                  ? ` [${issue.filePath}${issue.line ? `:${issue.line}` : ''}${issue.lineEnd && issue.lineEnd !== issue.line ? `-${issue.lineEnd}` : ''}]`
+                  : ''
+              }\n  ${issue.blockLabel ? `블록: ${issue.blockLabel}\n  ` : ''}${issue.impact ? `영향: ${issue.impact}\n  ` : ''}${issue.evidence ? `근거: ${issue.evidence}\n  ` : ''}${issue.recommendation}`,
           )
           .join('\n')
       : analysisResult && analysisResult.issues.length > 0

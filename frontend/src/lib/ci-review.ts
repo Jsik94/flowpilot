@@ -121,6 +121,7 @@ export function buildCiReviewReport({
   const strengths = buildStrengths(assessments, repoInsight, preMergeCount, postMergeCount);
   const watchouts = dedupedFindings.slice(0, 3).map((finding) => finding.summary);
   const quickWins = dedupeStrings(dedupedFindings.slice(0, 4).map((finding) => finding.recommendation)).slice(0, 4);
+  const roleAnalysis = analyzeWorkflowRoles(assessments);
 
   return {
     headline: buildHeadline(score),
@@ -157,6 +158,7 @@ export function buildCiReviewReport({
           .filter((node) => ['Manual', 'Schedule', 'Other'].includes(node.phaseLabel))
           .map((node) => node.workflowName) ?? [],
     },
+    roleAnalysis,
     workflowCards: assessments
       .map((assessment) => ({
         workflowName: assessment.preview.workflowName,
@@ -188,7 +190,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   const hasPostMergeTrigger = meta.triggers.some((trigger) => ['push', 'workflow_run', 'workflow_call', 'release'].includes(trigger));
 
   if (/permissions:\s*write-all/i.test(content) || /contents:\s*write/i.test(content)) {
-    const location = findLine(content, /(permissions:\s*write-all|contents:\s*write)/i);
+    const location = findYamlBlock(content, /(permissions:\s*write-all|contents:\s*write)/i);
     findings.push({
       id: `${preview.fileName}-permissions`,
       severity: 'critical',
@@ -196,13 +198,15 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: location?.snippet,
       impact: '기본 GITHUB_TOKEN이 넓은 쓰기 권한을 가지면 PR이나 외부 action과 결합될 때 변경 범위가 과도해질 수 있습니다.',
       summary: `${preview.workflowName}의 권한 범위가 넓습니다.`,
       recommendation: 'workflow 또는 job 수준 permissions를 최소 권한으로 축소하세요.',
     });
   } else if (!/permissions:/i.test(content)) {
-    const location = findLine(content, /^on:/im);
+    const location = findYamlBlock(content, /^on:/im);
     findings.push({
       id: `${preview.fileName}-permissions-missing`,
       severity: 'info',
@@ -210,6 +214,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: 'permissions 블록이 보이지 않습니다.',
       impact: '기본 토큰 권한에 의존하면 어떤 scope를 쓰는지 리뷰 단계에서 드러나지 않아 보안 검토가 어려워집니다.',
       summary: `${preview.workflowName}에 명시적 permissions 설정이 없습니다.`,
@@ -218,7 +224,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   }
 
   if (!hasTimeout) {
-    const location = findLine(content, /^jobs:/im);
+    const location = findYamlBlock(content, /^jobs:/im);
     findings.push({
       id: `${preview.fileName}-timeout`,
       severity: 'warning',
@@ -226,6 +232,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: 'timeout-minutes 선언이 없습니다.',
       impact: 'hang이나 외부 API 지연이 발생했을 때 runner 점유 시간이 길어지고, queue 병목이 생길 수 있습니다.',
       summary: `${preview.workflowName}에는 timeout 제한이 없습니다.`,
@@ -234,7 +242,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   }
 
   if (/setup-node/i.test(content) && !hasCache) {
-    const location = findLine(content, /setup-node/i);
+    const location = findYamlBlock(content, /setup-node/i);
     findings.push({
       id: `${preview.fileName}-cache`,
       severity: 'warning',
@@ -242,6 +250,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: location?.snippet,
       impact: '의존성 설치가 매 실행마다 반복되면 PR 검증 시간이 길어지고, 리뷰 피드백 루프가 느려집니다.',
       summary: `${preview.workflowName}는 Node 의존성 캐시가 보이지 않습니다.`,
@@ -250,7 +260,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   }
 
   if (/(deploy|release|publish)/i.test(`${preview.fileName} ${preview.workflowName}`) && !/concurrency:/i.test(content)) {
-    const location = findLine(content, /(deploy|release|publish)/i);
+    const location = findYamlBlock(content, /(deploy|release|publish)/i);
     findings.push({
       id: `${preview.fileName}-concurrency`,
       severity: 'warning',
@@ -258,6 +268,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: 'concurrency 블록이 보이지 않습니다.',
       impact: '같은 브랜치나 환경에 대한 배포가 겹치면 이전 실행 결과를 덮어쓰거나 순서 역전이 생길 수 있습니다.',
       summary: `${preview.workflowName}는 배포 성격인데 concurrency 보호가 없습니다.`,
@@ -267,7 +279,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
 
   const unpinnedActions = extractUnpinnedActions(content);
   if (unpinnedActions.length > 0) {
-    const location = findLine(content, /uses:\s*[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@/i);
+    const location = findYamlBlock(content, /uses:\s*[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@/i);
     findings.push({
       id: `${preview.fileName}-unpinned-actions`,
       severity: 'info',
@@ -275,6 +287,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: unpinnedActions.slice(0, 3).join(', '),
       impact: '태그 기반 action 참조는 상위 버전 변경에 따라 실행 결과가 바뀔 수 있어 재현성이 약해집니다.',
       summary: `${preview.workflowName}에서 SHA로 고정되지 않은 action 참조가 있습니다.`,
@@ -283,7 +297,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   }
 
   if (graph.jobs.length >= 6 && !/workflow_call:/i.test(content)) {
-    const location = findLine(content, /^jobs:/im);
+    const location = findYamlBlock(content, /^jobs:/im);
     findings.push({
       id: `${preview.fileName}-split`,
       severity: 'info',
@@ -291,6 +305,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: `job ${graph.jobs.length}개`,
       impact: '역할이 많은 workflow가 한 파일에 모이면 변경 리뷰 시 영향 범위 추적과 재사용이 어려워집니다.',
       summary: `${preview.workflowName}는 job 수가 많아 단일 workflow로 읽기 부담이 있습니다.`,
@@ -299,7 +315,7 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   }
 
   if (hasPostMergeTrigger && !hasPreMergeTrigger && /test|build|lint|check/i.test(`${preview.workflowName} ${preview.fileName}`)) {
-    const location = findLine(content, /^on:/im);
+    const location = findYamlBlock(content, /^on:/im);
     findings.push({
       id: `${preview.fileName}-late-validation`,
       severity: 'warning',
@@ -307,6 +323,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
       workflowName: preview.workflowName,
       filePath: preview.path,
       line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
       evidence: location?.snippet,
       impact: '검증성 workflow가 머지 이후에만 실행되면 문제를 늦게 발견하게 되어 롤백 비용이 커집니다.',
       summary: `${preview.workflowName}는 검증 workflow로 보이지만 머지 이후에만 실행됩니다.`,
@@ -520,19 +538,158 @@ function formatTrigger(trigger: string) {
   }
 }
 
-function findLine(content: string, pattern: RegExp) {
+function findYamlBlock(content: string, pattern: RegExp) {
   const lines = content.split(/\r?\n/);
 
   for (const [index, line] of lines.entries()) {
     if (pattern.test(line)) {
+      const startIndent = getIndent(line);
+      let blockStart = index;
+      while (blockStart > 0) {
+        const current = lines[blockStart]?.trim() ?? '';
+        if (current) {
+          break;
+        }
+        blockStart -= 1;
+      }
+
+      let blockEnd = index;
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const current = lines[cursor] ?? '';
+        const trimmed = current.trim();
+        if (!trimmed) {
+          continue;
+        }
+
+        if (getIndent(current) <= startIndent) {
+          break;
+        }
+
+        blockEnd = cursor;
+      }
+
       return {
         line: index + 1,
-        snippet: line.trim(),
+        lineEnd: blockEnd + 1,
+        snippet: lines.slice(index, Math.min(blockEnd + 1, index + 3)).map((item) => item.trim()).join(' | '),
+        label: inferBlockLabel(lines, index),
       };
     }
   }
 
   return null;
+}
+
+function inferBlockLabel(lines: string[], index: number) {
+  for (let cursor = index; cursor >= 0; cursor -= 1) {
+    const trimmed = (lines[cursor] ?? '').trim();
+    if (!trimmed || trimmed.startsWith('- ')) {
+      continue;
+    }
+
+    if (/^[A-Za-z0-9_.-]+:\s*$/.test(trimmed)) {
+      return trimmed.replace(/:\s*$/, '');
+    }
+
+    if (/^(jobs|on|permissions|steps):/.test(trimmed)) {
+      return trimmed.replace(/:\s*.*$/, '');
+    }
+  }
+
+  return 'workflow';
+}
+
+function getIndent(line: string) {
+  return line.match(/^ */)?.[0].length ?? 0;
+}
+
+function analyzeWorkflowRoles(assessments: WorkflowAssessment[]) {
+  const groups = new Map<string, string[]>();
+
+  for (const assessment of assessments) {
+    const roles = classifyWorkflowRoles(assessment);
+
+    for (const role of roles) {
+      groups.set(role, [...(groups.get(role) ?? []), assessment.preview.workflowName]);
+    }
+  }
+
+  const overlaps = [...groups.entries()]
+    .filter(([, workflows]) => workflows.length >= 2)
+    .map(([role, workflows]) => ({
+      role,
+      workflows,
+      summary: `${role} 역할을 가진 workflow가 ${workflows.length}개라 책임이 분산되거나 중복될 수 있습니다.`,
+    }))
+    .slice(0, 5);
+
+  const requiredRoles = [
+    {
+      role: 'PR Validation',
+      check: () => assessments.some((assessment) => assessment.hasPreMergeTrigger),
+      summary: '머지 이전 검증 체인이 약해 변경 리스크를 늦게 발견할 수 있습니다.',
+      recommendation: 'pull_request 또는 merge_group 기준 검증 workflow를 명시적으로 두는 편이 좋습니다.',
+    },
+    {
+      role: 'Post-merge CI',
+      check: () => assessments.some((assessment) => assessment.hasPostMergeTrigger),
+      summary: '머지 이후 기본 브랜치 건강도나 배포 전 파이프라인이 명확하지 않습니다.',
+      recommendation: 'push 또는 workflow_run 기준 후속 CI workflow를 구성해 메인 브랜치 상태를 지속적으로 확인하세요.',
+    },
+    {
+      role: 'Release / Deploy Guard',
+      check: () => assessments.some((assessment) => classifyWorkflowRoles(assessment).includes('Release / Deploy')),
+      summary: '배포 또는 릴리스 전용 workflow가 보이지 않아 운영 단계의 책임이 불명확합니다.',
+      recommendation: 'release, deploy, publish 역할을 별도 workflow로 분리해 운영 흐름을 명확히 하세요.',
+    },
+    {
+      role: 'Manual Ops',
+      check: () => assessments.some((assessment) => assessment.hasManualTrigger),
+      summary: '수동 또는 예약 실행용 workflow가 부족해 긴급 점검, 재색인, 운영성 작업이 모두 자동 흐름에 묶일 수 있습니다.',
+      recommendation: 'workflow_dispatch 또는 schedule 기반 운영용 workflow를 분리하는 것이 좋습니다.',
+    },
+  ];
+
+  const gaps = requiredRoles
+    .filter((role) => !role.check())
+    .map((role) => ({
+      role: role.role,
+      summary: role.summary,
+      recommendation: role.recommendation,
+    }));
+
+  return { overlaps, gaps };
+}
+
+function classifyWorkflowRoles(assessment: WorkflowAssessment) {
+  const source = `${assessment.preview.workflowName} ${assessment.preview.fileName} ${assessment.graph.jobs.map((job) => job.title).join(' ')}`.toLowerCase();
+  const roles = new Set<string>();
+
+  if (assessment.hasPreMergeTrigger || /\b(pr|review|lint|test|check)\b/.test(source)) {
+    roles.add('PR Validation');
+  }
+
+  if (assessment.hasPostMergeTrigger || /\b(ci|build|verify|pipeline)\b/.test(source)) {
+    roles.add('Post-merge CI');
+  }
+
+  if (/\b(deploy|release|publish|promote|backmerge)\b/.test(source)) {
+    roles.add('Release / Deploy');
+  }
+
+  if (/\b(label|docs|index|sync|metadata)\b/.test(source)) {
+    roles.add('Repository Maintenance');
+  }
+
+  if (assessment.hasManualTrigger || /\b(manual|nightly|schedule|ops|dispatch)\b/.test(source)) {
+    roles.add('Manual Ops');
+  }
+
+  if (roles.size === 0) {
+    roles.add('General Automation');
+  }
+
+  return [...roles];
 }
 
 function mapPhaseLabel(triggers: string[]) {

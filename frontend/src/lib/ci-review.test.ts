@@ -51,8 +51,47 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
   });
 
   assert.equal(report.stats.workflowCount, 1);
-  assert.ok(report.findings.some((finding) => finding.summary.includes('timeout') && typeof finding.line === 'number'));
+  assert.ok(
+    report.findings.some(
+      (finding) =>
+        finding.summary.includes('timeout') &&
+        typeof finding.line === 'number' &&
+        typeof finding.lineEnd === 'number' &&
+        Boolean(finding.blockLabel),
+    ),
+  );
   assert.ok(report.findings.some((finding) => finding.summary.includes('캐시') && typeof finding.line === 'number'));
   assert.ok(report.categoryScores.some((category) => category.key === 'performance'));
   assert.ok(report.workflowCards.length > 0);
+  assert.ok(report.roleAnalysis.gaps.some((gap) => gap.role === 'Release / Deploy Guard'));
+});
+
+test('buildCiReviewReport detects overlapping workflow roles', () => {
+  const report = buildCiReviewReport({
+    selectedBranch: 'main',
+    previews: [
+      PREVIEW,
+      {
+        ...PREVIEW,
+        fileName: 'build.yml',
+        path: '.github/workflows/build.yml',
+        workflowName: 'Build Checks',
+      },
+    ],
+    workflowMap: buildWorkflowMap([
+      PREVIEW,
+      {
+        ...PREVIEW,
+        fileName: 'build.yml',
+        path: '.github/workflows/build.yml',
+        workflowName: 'Build Checks',
+      },
+    ]),
+    repoInsight: null,
+    branchComparison: null,
+    runs: [],
+    analysisResult: null,
+  });
+
+  assert.ok(report.roleAnalysis.overlaps.some((overlap) => overlap.role === 'PR Validation'));
 });

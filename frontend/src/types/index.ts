@@ -161,6 +161,8 @@ export type CiReviewFinding = {
   workflowName?: string;
   filePath?: string;
   line?: number;
+  lineEnd?: number;
+  blockLabel?: string;
   evidence?: string;
   impact?: string;
   summary: string;
@@ -192,6 +194,18 @@ export type CiReviewReport = {
     preMerge: string[];
     postMerge: string[];
     manual: string[];
+  };
+  roleAnalysis: {
+    overlaps: Array<{
+      role: string;
+      workflows: string[];
+      summary: string;
+    }>;
+    gaps: Array<{
+      role: string;
+      summary: string;
+      recommendation: string;
+    }>;
   };
   workflowCards: Array<{
     workflowName: string;

@@ -139,6 +139,53 @@ export function ReviewReportPanel({
           <section className="report-section">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Role Analysis</p>
+                <h2>역할 중복과 누락</h2>
+              </div>
+            </div>
+
+            <div className="report-role-grid">
+              <article className="report-card">
+                <span className="detail-label">Overlaps</span>
+                <strong>역할 중복</strong>
+                {report.roleAnalysis.overlaps.length > 0 ? (
+                  <div className="report-role-list">
+                    {report.roleAnalysis.overlaps.map((item) => (
+                      <div key={item.role} className="report-role-item">
+                        <strong>{item.role}</strong>
+                        <p>{item.summary}</p>
+                        <p className="issue-target">{item.workflows.join(', ')}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>눈에 띄는 역할 중복은 크지 않습니다.</p>
+                )}
+              </article>
+
+              <article className="report-card">
+                <span className="detail-label">Gaps</span>
+                <strong>역할 누락</strong>
+                {report.roleAnalysis.gaps.length > 0 ? (
+                  <div className="report-role-list">
+                    {report.roleAnalysis.gaps.map((item) => (
+                      <div key={item.role} className="report-role-item">
+                        <strong>{item.role}</strong>
+                        <p>{item.summary}</p>
+                        <p>{item.recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>핵심 역할 누락은 상대적으로 적습니다.</p>
+                )}
+              </article>
+            </div>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">CI Evaluation</p>
                 <h2>평가 관점별 점수</h2>
               </div>
@@ -212,6 +259,8 @@ export function ReviewReportPanel({
                     <p className="report-finding-location">
                       {finding.filePath}
                       {finding.line ? `:${finding.line}` : ''}
+                      {finding.lineEnd && finding.lineEnd !== finding.line ? `-${finding.lineEnd}` : ''}
+                      {finding.blockLabel ? ` · ${finding.blockLabel} block` : ''}
                     </p>
                   ) : null}
                   {finding.impact ? <p><strong>영향</strong> {finding.impact}</p> : null}
