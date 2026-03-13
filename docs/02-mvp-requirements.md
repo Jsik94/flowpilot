@@ -1,4 +1,4 @@
-# GitHub Workflow Analyzer MVP Requirements
+# FlowPilot MVP Requirements
 
 ## 1. 문서 목적
 

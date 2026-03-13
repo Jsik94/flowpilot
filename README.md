@@ -2,6 +2,12 @@
 
 GitHub Actions 워크플로우를 브랜치 기준으로 시각화하고, CI 리뷰 리포트로 해석하는 웹 애플리케이션입니다.
 
+핵심 목표:
+
+- 브랜치 기준으로 workflow 전체 흐름을 빠르게 파악
+- workflow 내부 Job / Step 구조를 시각적으로 이해
+- CI 관점의 문제를 리포트 형태로 읽고 우선순위를 정리
+
 ## 1. 현재 배포 준비 상태
 
 현재 기준으로 배포 준비는 아래까지 완료됐습니다.
@@ -109,21 +115,21 @@ pnpm docker:stop
 
 핵심 문서:
 
-- [사용 가이드](/Users/new/dev/project/flowpilot/docs/06-guide.md)
-- [프론트엔드 아키텍처](/Users/new/dev/project/flowpilot/docs/07-frontend-architecture.md)
-- [백엔드 아키텍처](/Users/new/dev/project/flowpilot/docs/08-backend-architecture.md)
+- [사용 가이드](./docs/06-guide.md)
+- [프론트엔드 아키텍처](./docs/07-frontend-architecture.md)
+- [백엔드 아키텍처](./docs/08-backend-architecture.md)
 
 기존 기획 문서:
 
-- [01-init-idea.md](/Users/new/dev/project/flowpilot/docs/01-init-idea.md)
-- [02-mvp-requirements.md](/Users/new/dev/project/flowpilot/docs/02-mvp-requirements.md)
-- [03-technical-design.md](/Users/new/dev/project/flowpilot/docs/03-technical-design.md)
-- [04-implementation-plan.md](/Users/new/dev/project/flowpilot/docs/04-implementation-plan.md)
-- [05-agile-delivery-plan.md](/Users/new/dev/project/flowpilot/docs/05-agile-delivery-plan.md)
+- [01-init-idea.md](./docs/01-init-idea.md)
+- [02-mvp-requirements.md](./docs/02-mvp-requirements.md)
+- [03-technical-design.md](./docs/03-technical-design.md)
+- [04-implementation-plan.md](./docs/04-implementation-plan.md)
+- [05-agile-delivery-plan.md](./docs/05-agile-delivery-plan.md)
 
 ## 8. 참고
 
 - 로컬 개발 로그: `./.flowpilot/logs/`
 - Docker 실행 스크립트:
-  - [docker-start.sh](/Users/new/dev/project/flowpilot/scripts/docker-start.sh)
-  - [docker-stop.sh](/Users/new/dev/project/flowpilot/scripts/docker-stop.sh)
+  - [docker-start.sh](./scripts/docker-start.sh)
+  - [docker-stop.sh](./scripts/docker-stop.sh)

@@ -44,7 +44,7 @@ backend/src/
 
 ## 5. 부트스트랩
 
-- [backend/src/main.ts](/Users/new/dev/project/flowpilot/backend/src/main.ts)
+- [backend/src/main.ts](../backend/src/main.ts)
 
 역할:
 
@@ -62,7 +62,7 @@ Docker 환경에서는 frontend nginx를 `http://localhost:8080` 기준으로 �
 
 ## 6. 모듈 구조
 
-- [backend/src/app.module.ts](/Users/new/dev/project/flowpilot/backend/src/app.module.ts)
+- [backend/src/app.module.ts](../backend/src/app.module.ts)
 
 현재는 단일 모듈 구조입니다.
 
@@ -89,11 +89,11 @@ Docker 환경에서는 frontend nginx를 `http://localhost:8080` 기준으로 �
 
 컨트롤러:
 
-- [backend/src/analyze/analyze.controller.ts](/Users/new/dev/project/flowpilot/backend/src/analyze/analyze.controller.ts)
+- [backend/src/analyze/analyze.controller.ts](../backend/src/analyze/analyze.controller.ts)
 
 서비스:
 
-- [backend/src/analyze/analyze.service.ts](/Users/new/dev/project/flowpilot/backend/src/analyze/analyze.service.ts)
+- [backend/src/analyze/analyze.service.ts](../backend/src/analyze/analyze.service.ts)
 
 입력:
 
@@ -120,11 +120,11 @@ Docker 환경에서는 frontend nginx를 `http://localhost:8080` 기준으로 �
 
 컨트롤러:
 
-- [backend/src/recommend/recommend.controller.ts](/Users/new/dev/project/flowpilot/backend/src/recommend/recommend.controller.ts)
+- [backend/src/recommend/recommend.controller.ts](../backend/src/recommend/recommend.controller.ts)
 
 서비스:
 
-- [backend/src/recommend/recommend.service.ts](/Users/new/dev/project/flowpilot/backend/src/recommend/recommend.service.ts)
+- [backend/src/recommend/recommend.service.ts](../backend/src/recommend/recommend.service.ts)
 
 입력:
 
@@ -213,8 +213,8 @@ Docker 환경에서는 frontend nginx를 `http://localhost:8080` 기준으로 �
 
 관련 파일:
 
-- [backend/Dockerfile](/Users/new/dev/project/flowpilot/backend/Dockerfile)
-- [docker-compose.yml](/Users/new/dev/project/flowpilot/docker-compose.yml)
+- [backend/Dockerfile](../backend/Dockerfile)
+- [docker-compose.yml](../docker-compose.yml)
 
 현재 전략:
 
@@ -239,14 +239,14 @@ Docker 환경에서는 frontend nginx를 `http://localhost:8080` 기준으로 �
 
 분석 결과 수정:
 
-- [backend/src/analyze/analyze.service.ts](/Users/new/dev/project/flowpilot/backend/src/analyze/analyze.service.ts)
+- [backend/src/analyze/analyze.service.ts](../backend/src/analyze/analyze.service.ts)
 
 추천 결과 수정:
 
-- [backend/src/recommend/recommend.service.ts](/Users/new/dev/project/flowpilot/backend/src/recommend/recommend.service.ts)
+- [backend/src/recommend/recommend.service.ts](../backend/src/recommend/recommend.service.ts)
 
 포트/CORS/런타임 수정:
 
-- [backend/src/main.ts](/Users/new/dev/project/flowpilot/backend/src/main.ts)
-- [backend/Dockerfile](/Users/new/dev/project/flowpilot/backend/Dockerfile)
-- [docker-compose.yml](/Users/new/dev/project/flowpilot/docker-compose.yml)
+- [backend/src/main.ts](../backend/src/main.ts)
+- [backend/Dockerfile](../backend/Dockerfile)
+- [docker-compose.yml](../docker-compose.yml)

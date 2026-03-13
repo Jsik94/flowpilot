@@ -1,7 +1,7 @@
-# GitHub Workflow Analyzer - Product Spec
+# FlowPilot Product Spec
 
-> 프로젝트명: GitHub Workflow Analyzer
-> 코드명: FlowPilot
+> 프로젝트명: FlowPilot
+> 제품명 확정: FlowPilot
 > 작성일: 2026-03-12
 > 버전: v0.3
 > 대상 사용자: GitHub Actions 워크플로우를 자주 읽고 개선해야 하는 개발자
@@ -615,7 +615,7 @@ flowpilot/
 
 아직 확정이 필요한 항목은 아래다.
 
-1. 제품명은 `FlowPilot`으로 갈지 `GitHub Workflow Analyzer`로 갈지
+1. 제품명은 `FlowPilot`으로 확정하고, 구 레퍼런스 문구를 정리할지
 2. 스타일링을 Tailwind로 바로 갈지, CSS Modules로 단순하게 갈지
 3. 분석 대상을 선택된 단일 워크플로우로 제한할지, 레포 전체 워크플로우 묶음으로 확장할지
 4. YAML 코드 뷰어를 MVP에 넣을지 Phase 1.1로 미룰지

@@ -1,9 +1,9 @@
-# GitHub Workflow Analyzer Implementation Plan
+# FlowPilot Implementation Plan
 
 ## 1. 목표
 
 이 문서는 MVP를 실제로 만들기 위한 작업 순서와 산출물을 정의한다.
-에자일 운영 방식과 iteration 계획은 [05-agile-delivery-plan.md](/Users/new/dev/project/flowpilot/docs/05-agile-delivery-plan.md)를 기준으로 한다.
+에자일 운영 방식과 iteration 계획은 [05-agile-delivery-plan.md](./05-agile-delivery-plan.md)를 기준으로 한다.
 
 ---
 

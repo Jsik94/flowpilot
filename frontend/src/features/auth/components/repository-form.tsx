@@ -48,7 +48,7 @@ export function RepositoryForm({
       <div className="hero-toolbar">
         <div className="section-heading">
           <p className="eyebrow">Repository</p>
-          <h1>GitHub workflow를 붙여서 바로 구조를 봅니다.</h1>
+          <h1>FlowPilot로 GitHub Actions 구조를 빠르게 읽습니다.</h1>
           <p className="muted">
             레포 연결부터 브랜치 선택, workflow source 확인까지 한 흐름으로 정리합니다.
           </p>

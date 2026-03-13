@@ -31,7 +31,7 @@
 
 ### 4.1 엔트리
 
-- [frontend/src/main.tsx](/Users/new/dev/project/flowpilot/frontend/src/main.tsx)
+- [frontend/src/main.tsx](../frontend/src/main.tsx)
 
 역할:
 
@@ -41,7 +41,7 @@
 
 ### 4.2 앱 셸
 
-- [frontend/src/app/App.tsx](/Users/new/dev/project/flowpilot/frontend/src/app/App.tsx)
+- [frontend/src/app/App.tsx](../frontend/src/app/App.tsx)
 
 역할:
 
@@ -88,7 +88,7 @@ frontend/src/
 
 ### 6.1 RepositoryForm
 
-- [frontend/src/features/auth/components/repository-form.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/auth/components/repository-form.tsx)
+- [frontend/src/features/auth/components/repository-form.tsx](../frontend/src/features/auth/components/repository-form.tsx)
 
 역할:
 
@@ -100,7 +100,7 @@ frontend/src/
 
 ### 6.2 WorkflowMapPanel
 
-- [frontend/src/features/workflows/components/workflow-map-panel.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/workflows/components/workflow-map-panel.tsx)
+- [frontend/src/features/workflows/components/workflow-map-panel.tsx](../frontend/src/features/workflows/components/workflow-map-panel.tsx)
 
 역할:
 
@@ -110,7 +110,7 @@ frontend/src/
 
 ### 6.3 GraphCanvas
 
-- [frontend/src/features/graph/components/graph-canvas.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/graph/components/graph-canvas.tsx)
+- [frontend/src/features/graph/components/graph-canvas.tsx](../frontend/src/features/graph/components/graph-canvas.tsx)
 
 역할:
 
@@ -119,7 +119,7 @@ frontend/src/
 
 ### 6.4 RunHistoryPanel
 
-- [frontend/src/features/runs/components/run-history-panel.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/runs/components/run-history-panel.tsx)
+- [frontend/src/features/runs/components/run-history-panel.tsx](../frontend/src/features/runs/components/run-history-panel.tsx)
 
 역할:
 
@@ -129,7 +129,7 @@ frontend/src/
 
 ### 6.5 JobDetailPanel
 
-- [frontend/src/features/jobs/components/job-detail-panel.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/jobs/components/job-detail-panel.tsx)
+- [frontend/src/features/jobs/components/job-detail-panel.tsx](../frontend/src/features/jobs/components/job-detail-panel.tsx)
 
 역할:
 
@@ -139,7 +139,7 @@ frontend/src/
 
 ### 6.6 ReviewReportPanel
 
-- [frontend/src/features/review/components/review-report-panel.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/review/components/review-report-panel.tsx)
+- [frontend/src/features/review/components/review-report-panel.tsx](../frontend/src/features/review/components/review-report-panel.tsx)
 
 역할:
 
@@ -151,7 +151,7 @@ frontend/src/
 
 ### 7.1 GitHub API client
 
-- [frontend/src/lib/github.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/github.ts)
+- [frontend/src/lib/github.ts](../frontend/src/lib/github.ts)
 
 역할:
 
@@ -169,7 +169,7 @@ frontend/src/
 
 ### 7.2 Workflow Graph 변환
 
-- [frontend/src/lib/workflow-graph.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-graph.ts)
+- [frontend/src/lib/workflow-graph.ts](../frontend/src/lib/workflow-graph.ts)
 
 역할:
 
@@ -179,7 +179,7 @@ frontend/src/
 
 ### 7.3 Workflow Map 변환
 
-- [frontend/src/lib/workflow-map.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-map.ts)
+- [frontend/src/lib/workflow-map.ts](../frontend/src/lib/workflow-map.ts)
 
 역할:
 
@@ -190,8 +190,8 @@ frontend/src/
 
 ### 7.4 Repo Insight / Review
 
-- [frontend/src/lib/repo-insights.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/repo-insights.ts)
-- [frontend/src/lib/ci-review.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/ci-review.ts)
+- [frontend/src/lib/repo-insights.ts](../frontend/src/lib/repo-insights.ts)
+- [frontend/src/lib/ci-review.ts](../frontend/src/lib/ci-review.ts)
 
 역할:
 
@@ -203,8 +203,8 @@ frontend/src/
 
 ### 7.5 Backend API client
 
-- [frontend/src/lib/analyze.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/analyze.ts)
-- [frontend/src/lib/recommend.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/recommend.ts)
+- [frontend/src/lib/analyze.ts](../frontend/src/lib/analyze.ts)
+- [frontend/src/lib/recommend.ts](../frontend/src/lib/recommend.ts)
 
 역할:
 
@@ -231,7 +231,7 @@ frontend/src/
 
 ## 9. 스타일 구조
 
-- [frontend/src/styles/global.css](/Users/new/dev/project/flowpilot/frontend/src/styles/global.css)
+- [frontend/src/styles/global.css](../frontend/src/styles/global.css)
 
 현재 전략:
 
@@ -255,24 +255,24 @@ frontend/src/
 
 예:
 
-- [frontend/src/lib/github.test.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/github.test.ts)
-- [frontend/src/lib/workflow-graph.test.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-graph.test.ts)
-- [frontend/src/lib/workflow-map.test.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-map.test.ts)
-- [frontend/src/lib/ci-review.test.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/ci-review.test.ts)
+- [frontend/src/lib/github.test.ts](../frontend/src/lib/github.test.ts)
+- [frontend/src/lib/workflow-graph.test.ts](../frontend/src/lib/workflow-graph.test.ts)
+- [frontend/src/lib/workflow-map.test.ts](../frontend/src/lib/workflow-map.test.ts)
+- [frontend/src/lib/ci-review.test.ts](../frontend/src/lib/ci-review.test.ts)
 
 ## 11. 변경 시 우선 확인할 파일
 
 UI/UX 수정:
 
-- [frontend/src/features/auth/components/repository-form.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/auth/components/repository-form.tsx)
-- [frontend/src/styles/global.css](/Users/new/dev/project/flowpilot/frontend/src/styles/global.css)
+- [frontend/src/features/auth/components/repository-form.tsx](../frontend/src/features/auth/components/repository-form.tsx)
+- [frontend/src/styles/global.css](../frontend/src/styles/global.css)
 
 workflow parsing:
 
-- [frontend/src/lib/workflow-graph.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-graph.ts)
-- [frontend/src/lib/workflow-map.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/workflow-map.ts)
+- [frontend/src/lib/workflow-graph.ts](../frontend/src/lib/workflow-graph.ts)
+- [frontend/src/lib/workflow-map.ts](../frontend/src/lib/workflow-map.ts)
 
 리포트 수정:
 
-- [frontend/src/lib/ci-review.ts](/Users/new/dev/project/flowpilot/frontend/src/lib/ci-review.ts)
-- [frontend/src/features/review/components/review-report-panel.tsx](/Users/new/dev/project/flowpilot/frontend/src/features/review/components/review-report-panel.tsx)
+- [frontend/src/lib/ci-review.ts](../frontend/src/lib/ci-review.ts)
+- [frontend/src/features/review/components/review-report-panel.tsx](../frontend/src/features/review/components/review-report-panel.tsx)

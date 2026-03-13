@@ -1,4 +1,4 @@
-# GitHub Workflow Analyzer Technical Design
+# FlowPilot Technical Design
 
 ## 1. 문서 목적
 

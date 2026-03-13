@@ -1,8 +1,8 @@
-# GitHub Workflow Analyzer Agile Delivery Plan
+# FlowPilot Agile Delivery Plan
 
 ## 1. 문서 목적
 
-이 문서는 GitHub Workflow Analyzer를 에자일하게 개발하기 위한 운영 계획을 정의한다.
+이 문서는 FlowPilot를 에자일하게 개발하기 위한 운영 계획을 정의한다.
 핵심은 큰 설계를 한 번에 끝내는 것이 아니라, 작게 만들고 빠르게 확인하고 다음 우선순위를 조정하는 방식으로 MVP를 완성하는 것이다.
 
 ---
