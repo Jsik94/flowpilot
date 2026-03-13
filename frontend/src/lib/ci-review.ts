@@ -32,6 +32,8 @@ type WorkflowAssessment = {
   hasManualTrigger: boolean;
   hasPreMergeTrigger: boolean;
   hasPostMergeTrigger: boolean;
+  longestChain: number;
+  hasFullySequentialFlow: boolean;
 };
 
 export function buildWorkflowNarrative(
@@ -111,6 +113,18 @@ export function buildCiReviewReport({
     recommendation: issue.summary || '선택된 workflow 세부 이슈를 확인하세요.',
   }));
   findings.push(...mergedAiFindings);
+  const roleAnalysis = analyzeWorkflowRoles(assessments);
+  findings.push(
+    ...roleAnalysis.overlaps.map<CiReviewFinding>((overlap) => ({
+      id: `duplication-${overlap.role}`,
+      severity: 'info',
+      category: 'duplication',
+      summary: `${overlap.role} 역할이 여러 workflow에 분산되어 있습니다.`,
+      evidence: overlap.workflows.join(', '),
+      impact: '유사한 검증/운영 로직이 여러 파일에 흩어지면 수정 누락과 정책 불일치가 생기기 쉽습니다.',
+      recommendation: overlap.summary,
+    })),
+  );
 
   const dedupedFindings = dedupeFindings(findings)
     .sort(compareFindingSeverity)
@@ -121,7 +135,7 @@ export function buildCiReviewReport({
   const strengths = buildStrengths(assessments, repoInsight, preMergeCount, postMergeCount);
   const watchouts = dedupedFindings.slice(0, 3).map((finding) => finding.summary);
   const quickWins = dedupeStrings(dedupedFindings.slice(0, 4).map((finding) => finding.recommendation)).slice(0, 4);
-  const roleAnalysis = analyzeWorkflowRoles(assessments);
+  const optimizationInsights = buildOptimizationInsights(assessments, roleAnalysis);
 
   return {
     headline: buildHeadline(score),
@@ -159,6 +173,7 @@ export function buildCiReviewReport({
           .map((node) => node.workflowName) ?? [],
     },
     roleAnalysis,
+    optimizationInsights,
     workflowCards: assessments
       .map((assessment) => ({
         workflowName: assessment.preview.workflowName,
@@ -188,6 +203,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
   const hasManualTrigger = meta.triggers.includes('workflow_dispatch') || meta.triggers.includes('schedule');
   const hasPreMergeTrigger = meta.triggers.some((trigger) => ['pull_request', 'pull_request_target', 'merge_group'].includes(trigger));
   const hasPostMergeTrigger = meta.triggers.some((trigger) => ['push', 'workflow_run', 'workflow_call', 'release'].includes(trigger));
+  const longestChain = getLongestJobChain(graph);
+  const hasFullySequentialFlow = isFullySequential(graph);
 
   if (/permissions:\s*write-all/i.test(content) || /contents:\s*write/i.test(content)) {
     const location = findYamlBlock(content, /(permissions:\s*write-all|contents:\s*write)/i);
@@ -332,6 +349,42 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
     });
   }
 
+  if (graph.jobs.length >= 3 && hasFullySequentialFlow) {
+    const location = findYamlBlock(content, /^jobs:/im);
+    findings.push({
+      id: `${preview.fileName}-serial-chain`,
+      severity: 'warning',
+      category: 'latency',
+      workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
+      evidence: `job ${graph.jobs.length}개가 직렬로 연결되어 있습니다.`,
+      impact: '독립적으로 병렬 처리할 수 있는 단계까지 한 줄로 묶이면 PR 대기 시간이 불필요하게 길어질 수 있습니다.',
+      summary: `${preview.workflowName}는 job 의존성이 길게 직렬화되어 있습니다.`,
+      recommendation: '독립 가능한 lint/test/build 단계는 needs를 재검토해 병렬화할 수 있는지 확인하세요.',
+    });
+  }
+
+  if (graph.jobs.length <= 1 && graph.jobs[0]?.steps.length >= 7) {
+    const location = findYamlBlock(content, /^jobs:/im);
+    findings.push({
+      id: `${preview.fileName}-single-job-heavy`,
+      severity: 'info',
+      category: 'latency',
+      workflowName: preview.workflowName,
+      filePath: preview.path,
+      line: location?.line,
+      lineEnd: location?.lineEnd,
+      blockLabel: location?.label,
+      evidence: `단일 job에 step ${graph.jobs[0]?.steps.length}개`,
+      impact: '한 job에 검증 단계가 과도하게 몰리면 실패 원인 구분과 병렬화 포인트 탐색이 어려워집니다.',
+      summary: `${preview.workflowName}는 단일 job에 단계가 몰려 있어 병렬화 여지가 있습니다.`,
+      recommendation: 'lint/test/build처럼 독립 가능한 step은 job 분리 후 병렬 실행을 검토하세요.',
+    });
+  }
+
   return {
     preview,
     graph,
@@ -342,6 +395,8 @@ function assessWorkflow(preview: WorkflowPreview): WorkflowAssessment {
     hasManualTrigger,
     hasPreMergeTrigger,
     hasPostMergeTrigger,
+    longestChain,
+    hasFullySequentialFlow,
   };
 }
 
@@ -406,6 +461,24 @@ function buildCategoryScores(
         preMergeCount > 0
           ? '머지 이전 검증 체인이 존재해 앞단 검증 체계는 갖춰져 있습니다.'
           : '머지 이전 검증 체인이 약해 문제가 기본 브랜치로 늦게 유입될 수 있습니다.',
+    },
+    {
+      key: 'duplication',
+      label: '중복 작업',
+      base: 82,
+      summary:
+        findings.some((finding) => finding.category === 'duplication')
+          ? '비슷한 역할의 workflow가 겹쳐 있어 책임 분리와 재사용 경계를 다시 볼 필요가 있습니다.'
+          : '큰 역할 중복은 적어 보이며 workflow 책임이 비교적 구분됩니다.',
+    },
+    {
+      key: 'latency',
+      label: '지연 시간',
+      base: assessments.some((assessment) => assessment.hasFullySequentialFlow) ? 68 : 84,
+      summary:
+        findings.some((finding) => finding.category === 'latency')
+          ? '직렬 실행과 무거운 단일 job 때문에 전체 리드타임이 길어질 가능성이 있습니다.'
+          : '눈에 띄는 병목은 적고, 추가 최적화 여지가 제한적입니다.',
     },
   ] as const;
 
@@ -661,6 +734,36 @@ function analyzeWorkflowRoles(assessments: WorkflowAssessment[]) {
   return { overlaps, gaps };
 }
 
+function buildOptimizationInsights(
+  assessments: WorkflowAssessment[],
+  roleAnalysis: ReturnType<typeof analyzeWorkflowRoles>,
+) {
+  const duplicateWork = roleAnalysis.overlaps.map((overlap) => overlap.summary);
+  const latencyRisks = assessments
+    .filter((assessment) => assessment.hasFullySequentialFlow || assessment.longestChain >= 4)
+    .map(
+      (assessment) =>
+        `${assessment.preview.workflowName}는 longest chain ${assessment.longestChain} 단계로 이어져 전체 실행 시간이 길어질 수 있습니다.`,
+    )
+    .slice(0, 4);
+
+  const efficiencyTips = dedupeStrings([
+    ...assessments
+      .filter((assessment) => !assessment.hasCache && /setup-node/i.test(assessment.preview.content))
+      .map((assessment) => `${assessment.preview.workflowName}: setup-node cache 또는 actions/cache 적용`),
+    ...assessments
+      .filter((assessment) => assessment.hasFullySequentialFlow)
+      .map((assessment) => `${assessment.preview.workflowName}: needs 체인을 재검토해 lint/test/build 병렬화 가능성 확인`),
+    ...roleAnalysis.overlaps.map((overlap) => `${overlap.role}: reusable workflow 또는 공통 action으로 중복 로직 통합 검토`),
+  ]).slice(0, 6);
+
+  return {
+    duplicateWork,
+    latencyRisks,
+    efficiencyTips,
+  };
+}
+
 function classifyWorkflowRoles(assessment: WorkflowAssessment) {
   const source = `${assessment.preview.workflowName} ${assessment.preview.fileName} ${assessment.graph.jobs.map((job) => job.title).join(' ')}`.toLowerCase();
   const roles = new Set<string>();
@@ -690,6 +793,46 @@ function classifyWorkflowRoles(assessment: WorkflowAssessment) {
   }
 
   return [...roles];
+}
+
+function getLongestJobChain(graph: WorkflowGraph) {
+  const nodeMap = new Map(graph.jobs.map((job) => [job.id, job]));
+  const memo = new Map<string, number>();
+
+  const visit = (jobId: string): number => {
+    const cached = memo.get(jobId);
+    if (cached) {
+      return cached;
+    }
+
+    const job = nodeMap.get(jobId);
+    if (!job) {
+      return 0;
+    }
+
+    const depth =
+      job.needs.length === 0
+        ? 1
+        : 1 + Math.max(...job.needs.map((dependency) => visit(dependency)).filter(Boolean));
+
+    memo.set(jobId, depth);
+    return depth;
+  };
+
+  return Math.max(0, ...graph.jobs.map((job) => visit(job.id)));
+}
+
+function isFullySequential(graph: WorkflowGraph) {
+  if (graph.jobs.length < 3) {
+    return false;
+  }
+
+  const roots = graph.jobs.filter((job) => job.needs.length === 0);
+  if (roots.length !== 1) {
+    return false;
+  }
+
+  return graph.jobs.every((job) => job.needs.length <= 1);
 }
 
 function mapPhaseLabel(triggers: string[]) {

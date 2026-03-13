@@ -157,7 +157,14 @@ export type AnalysisResult = {
 export type CiReviewFinding = {
   id: string;
   severity: 'critical' | 'warning' | 'info';
-  category: 'security' | 'reliability' | 'performance' | 'maintainability' | 'coverage';
+  category:
+    | 'security'
+    | 'reliability'
+    | 'performance'
+    | 'maintainability'
+    | 'coverage'
+    | 'duplication'
+    | 'latency';
   workflowName?: string;
   filePath?: string;
   line?: number;
@@ -185,7 +192,14 @@ export type CiReviewReport = {
   watchouts: string[];
   quickWins: string[];
   categoryScores: Array<{
-    key: 'security' | 'reliability' | 'performance' | 'maintainability' | 'coverage';
+    key:
+      | 'security'
+      | 'reliability'
+      | 'performance'
+      | 'maintainability'
+      | 'coverage'
+      | 'duplication'
+      | 'latency';
     label: string;
     score: number;
     summary: string;
@@ -206,6 +220,11 @@ export type CiReviewReport = {
       summary: string;
       recommendation: string;
     }>;
+  };
+  optimizationInsights: {
+    duplicateWork: string[];
+    latencyRisks: string[];
+    efficiencyTips: string[];
   };
   workflowCards: Array<{
     workflowName: string;

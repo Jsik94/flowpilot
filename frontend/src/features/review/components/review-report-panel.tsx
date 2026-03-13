@@ -190,6 +190,59 @@ export function ReviewReportPanel({
           <section className="report-section">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Optimization</p>
+                <h2>최적화 관점 인사이트</h2>
+              </div>
+            </div>
+
+            <div className="report-role-grid">
+              <article className="report-card">
+                <span className="detail-label">Duplicate Work</span>
+                <strong>중복 작업</strong>
+                {report.optimizationInsights.duplicateWork.length > 0 ? (
+                  <ul className="report-bullet-list">
+                    {report.optimizationInsights.duplicateWork.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>크게 보이는 중복 작업은 많지 않습니다.</p>
+                )}
+              </article>
+
+              <article className="report-card">
+                <span className="detail-label">Latency Risks</span>
+                <strong>지연 시간 위험</strong>
+                {report.optimizationInsights.latencyRisks.length > 0 ? (
+                  <ul className="report-bullet-list">
+                    {report.optimizationInsights.latencyRisks.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>눈에 띄는 직렬 병목은 적습니다.</p>
+                )}
+              </article>
+
+              <article className="report-card">
+                <span className="detail-label">Efficiency Tips</span>
+                <strong>효율화 팁</strong>
+                {report.optimizationInsights.efficiencyTips.length > 0 ? (
+                  <ul className="report-bullet-list">
+                    {report.optimizationInsights.efficiencyTips.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>현재 구조 기준으로 빠르게 적용할 효율화 팁은 제한적입니다.</p>
+                )}
+              </article>
+            </div>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">CI Evaluation</p>
                 <h2>평가 관점별 점수</h2>
               </div>

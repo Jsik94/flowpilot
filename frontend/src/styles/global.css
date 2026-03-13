@@ -926,6 +926,16 @@ textarea {
   margin-top: 12px;
 }
 
+.report-bullet-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.report-bullet-list li + li {
+  margin-top: 8px;
+}
+
 .report-role-item {
   padding: 14px;
   border-radius: 14px;

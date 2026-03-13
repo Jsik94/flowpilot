@@ -94,4 +94,10 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
   });
 
   assert.ok(report.roleAnalysis.overlaps.some((overlap) => overlap.role === 'PR Validation'));
+  assert.ok(report.optimizationInsights.duplicateWork.length > 0);
+  assert.ok(
+    report.categoryScores.some(
+      (category) => category.key === 'duplication' || category.key === 'latency',
+    ),
+  );
 });
