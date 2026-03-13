@@ -1,0 +1,8 @@
+node_modules
+.pnpm-store
+.git
+.DS_Store
+.flowpilot
+frontend/dist
+backend/dist
+report.html

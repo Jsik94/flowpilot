@@ -1,6 +1,6 @@
 import type { RecommendationResult, RepoInsight, RepositoryRef, WorkflowPreview } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export async function recommendWorkflowChange(input: {
   repository: RepositoryRef;

@@ -91,7 +91,31 @@ cp backend/.env.example backend/.env
 3. 프론트 화면 확인
 4. 필요 시 `pnpm dev:stop`
 
-## 7. 현재 상태
+## 7. Docker 배포
+
+실행:
+
+```bash
+pnpm docker:start
+```
+
+중지:
+
+```bash
+pnpm docker:stop
+```
+
+기본 주소:
+
+- 프론트엔드: `http://localhost:8080`
+- 백엔드 헬스체크: `http://localhost:3001/api/health`
+
+참고:
+
+- 프론트는 nginx로 서빙되고 `/api` 요청은 backend 컨테이너로 프록시됩니다.
+- `GEMINI_API_KEY`가 있으면 `docker compose` 실행 시 backend 컨테이너에 전달됩니다.
+
+## 8. 현재 상태
 
 - GitHub 레포 연결과 워크플로우 목록 조회가 동작함
 - 브랜치 선택 후 해당 브랜치 기준으로 워크플로우를 다시 로드할 수 있음
