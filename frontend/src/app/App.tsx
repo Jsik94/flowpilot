@@ -68,6 +68,12 @@ export function App() {
   const [repoInsight, setRepoInsight] = useState<RepoInsight | null>(null);
   const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sourceFocus, setSourceFocus] = useState<{
+    path: string;
+    line: number;
+    lineEnd?: number;
+    blockLabel?: string;
+  } | null>(null);
   const [progressState, setProgressState] = useState<{
     label: string;
     current: number;
@@ -155,6 +161,7 @@ export function App() {
     setSelectedRunJobs([]);
     setAnalysisResult(null);
     setAnalysisLoading(false);
+    setSourceFocus(null);
   }
 
   function persistFormState(nextState: RepositoryFormState) {
@@ -282,6 +289,7 @@ export function App() {
 
     setSelectedWorkflowId(workflowId);
     setSelectedPreview(preview);
+    setSourceFocus(null);
 
     const graph = buildWorkflowGraph(preview.content, preview.workflowName);
     setWorkflowGraph(graph);
@@ -412,6 +420,62 @@ export function App() {
     );
   }
 
+  function handleSelectWorkflowByFileName(fileName: string) {
+    const workflow = workflowItems.find((item) => item.fileName === fileName);
+    if (!workflow) {
+      return;
+    }
+
+    if (workflow.id === selectedWorkflowId) {
+      return;
+    }
+
+    void applySelectedWorkflow(workflow.id, workflowItems, workflowPreviews);
+  }
+
+  function handleSelectFinding(finding: {
+    filePath?: string;
+    workflowName?: string;
+    line?: number;
+    lineEnd?: number;
+    blockLabel?: string;
+  }) {
+    const targetPreview = allPreviews.find(
+      (preview) =>
+        preview.path === finding.filePath ||
+        (finding.workflowName ? preview.workflowName === finding.workflowName : false),
+    );
+
+    if (!targetPreview || !finding.line) {
+      return;
+    }
+
+    const targetWorkflow = workflowItems.find((item) => item.path === targetPreview.path);
+    if (!targetWorkflow) {
+      return;
+    }
+
+    setSourceFocus({
+      path: targetPreview.path,
+      line: finding.line,
+      lineEnd: finding.lineEnd,
+      blockLabel: finding.blockLabel,
+    });
+
+    if (targetWorkflow.id === selectedWorkflowId) {
+      return;
+    }
+
+    void applySelectedWorkflow(targetWorkflow.id, workflowItems, workflowPreviews).then(() => {
+      setSourceFocus({
+        path: targetPreview.path,
+        line: finding.line ?? 1,
+        lineEnd: finding.lineEnd,
+        blockLabel: finding.blockLabel,
+      });
+    });
+  }
+
   function handleSelectBranch(branch: string) {
     if (!repository || branch === selectedBranch) {
       return;
@@ -528,6 +592,8 @@ export function App() {
             report={reviewReport}
             repository={repository}
             selectedBranch={selectedBranch}
+            onSelectFinding={handleSelectFinding}
+            onSelectWorkflow={handleSelectWorkflowByFileName}
           />
         ) : null}
 
@@ -589,6 +655,7 @@ export function App() {
                     loading={workflowLoading}
                     onExport={handleExportWorkflowFile}
                     preview={selectedPreview}
+                    sourceFocus={sourceFocus}
                   />
                 </div>
               </div>

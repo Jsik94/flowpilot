@@ -1,4 +1,4 @@
-import type { CiReviewReport, RepositoryRef, WorkflowPreview } from '../../../types';
+import type { CiReviewFinding, CiReviewReport, RepositoryRef, WorkflowPreview } from '../../../types';
 
 type ReviewReportPanelProps = {
   repository: RepositoryRef;
@@ -6,6 +6,8 @@ type ReviewReportPanelProps = {
   preview: WorkflowPreview | null;
   report: CiReviewReport | null;
   onExportMarkdown: () => void;
+  onSelectFinding: (finding: CiReviewFinding) => void;
+  onSelectWorkflow: (fileName: string) => void;
 };
 
 export function ReviewReportPanel({
@@ -14,6 +16,8 @@ export function ReviewReportPanel({
   preview,
   report,
   onExportMarkdown,
+  onSelectFinding,
+  onSelectWorkflow,
 }: ReviewReportPanelProps) {
   return (
     <section className="panel report-panel">
@@ -217,7 +221,12 @@ export function ReviewReportPanel({
 
             <div className="report-workflow-grid">
               {report.workflowCards.map((workflow) => (
-                <article key={workflow.fileName} className="report-workflow-card">
+                <button
+                  key={workflow.fileName}
+                  className="report-workflow-card"
+                  onClick={() => onSelectWorkflow(workflow.fileName)}
+                  type="button"
+                >
                   <div className="report-workflow-top">
                     <div>
                       <strong>{workflow.workflowName}</strong>
@@ -231,7 +240,7 @@ export function ReviewReportPanel({
                     <span>Risks: {workflow.riskCount}</span>
                   </div>
                   <p>{workflow.headline}</p>
-                </article>
+                </button>
               ))}
             </div>
           </section>
@@ -246,7 +255,12 @@ export function ReviewReportPanel({
 
             <div className="report-findings-list">
               {report.findings.map((finding) => (
-                <article key={finding.id} className={`report-finding-card is-${finding.severity}`}>
+                <button
+                  key={finding.id}
+                  className={`report-finding-card is-${finding.severity}`}
+                  onClick={() => onSelectFinding(finding)}
+                  type="button"
+                >
                   <div className="report-finding-top">
                     <span className={`pill pill-${finding.severity}`}>{finding.severity}</span>
                     <strong>{finding.summary}</strong>
@@ -266,7 +280,7 @@ export function ReviewReportPanel({
                   {finding.impact ? <p><strong>영향</strong> {finding.impact}</p> : null}
                   {finding.evidence ? <p><strong>근거</strong> {finding.evidence}</p> : null}
                   <p>{finding.recommendation}</p>
-                </article>
+                </button>
               ))}
             </div>
           </section>

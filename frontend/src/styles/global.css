@@ -944,10 +944,14 @@ textarea {
 }
 
 .report-workflow-card {
+  width: 100%;
   padding: 18px;
   border-radius: 18px;
   border: 1px solid var(--item-border);
   background: var(--item-bg);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
 }
 
 .report-workflow-top,
@@ -973,6 +977,12 @@ textarea {
   color: var(--muted);
 }
 
+.report-workflow-card:hover,
+.report-finding-card:hover {
+  border-color: var(--active-border);
+  box-shadow: 0 0 0 1px var(--active-shadow);
+}
+
 .report-finding-card.is-critical {
   border-color: rgba(255, 111, 125, 0.24);
 }
@@ -985,11 +995,34 @@ textarea {
   border-color: rgba(143, 184, 255, 0.24);
 }
 
+.report-finding-card {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
 .report-finding-location {
   margin-top: 10px;
   color: var(--text);
   font-family: "SFMono-Regular", "Menlo", monospace;
   font-size: 0.8rem;
+}
+
+.source-focus-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(91, 209, 165, 0.24);
+  background: rgba(91, 209, 165, 0.08);
+}
+
+.source-focus-banner span {
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .report-section {
@@ -1065,7 +1098,7 @@ textarea {
 
 .code-preview {
   margin: 18px 0 0;
-  padding: 18px;
+  padding: 12px 0;
   max-height: 520px;
   border-radius: 18px;
   overflow: auto;
@@ -1075,6 +1108,28 @@ textarea {
   font-family: "SFMono-Regular", "Menlo", monospace;
   font-size: 0.86rem;
   line-height: 1.6;
+}
+
+.code-line {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 18px;
+}
+
+.code-line.is-active {
+  background: rgba(91, 209, 165, 0.12);
+}
+
+.code-line-number {
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+}
+
+.code-line-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .detail-drawer {
