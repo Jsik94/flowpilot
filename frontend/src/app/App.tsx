@@ -12,13 +12,13 @@ import {
   fetchBranches,
   fetchOptionalRepositoryFileText,
   fetchRepository,
-  fetchRepositoryEntries,
+  fetchRepositoryTreeEntries,
   fetchWorkflowPreview,
   fetchWorkflowRuns,
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
-import { buildBranchComparison, buildRepoInsight, buildReviewMarkdown } from '../lib/repo-insights';
+import { buildBranchComparison, buildRepoInsight, buildReviewHtml } from '../lib/repo-insights';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
 import { buildWorkflowMap } from '../lib/workflow-map';
 import type {
@@ -195,8 +195,14 @@ export function App() {
     token: string,
     currentWorkflows: WorkflowSummary[],
   ) {
+    setProgressState({
+      label: '레포 구조와 기술 스택 신호를 스캔하는 중입니다.',
+      current: 1,
+      total: 1,
+    });
+
     const [entries, packageJsonText, readmeText, defaultBranchWorkflows] = await Promise.all([
-      fetchRepositoryEntries(repoRef, '', branch, token),
+      fetchRepositoryTreeEntries(repoRef, branch, token),
       fetchOptionalRepositoryFileText(repoRef, 'package.json', branch, token),
       fetchOptionalRepositoryFileText(repoRef, 'README.md', branch, token),
       branch === repoRef.defaultBranch
@@ -438,7 +444,7 @@ export function App() {
         }
 
         setProgressState({
-          label: `브랜치 리포트 분석 ${index + 1}/${summaries.length}`,
+          label: `브랜치 리포트를 심화 분석하는 중입니다. (${index + 1}/${summaries.length})`,
           current: index + 1,
           total: summaries.length,
         });
@@ -466,8 +472,8 @@ export function App() {
     setErrorMessage(null);
     setSelectedBranch(branch);
     setProgressState({
-      label: '워크플로우 목록을 불러오는 중입니다.',
-      current: 0,
+      label: '브랜치의 workflow 목록을 확인하는 중입니다.',
+      current: 1,
       total: 1,
     });
 
@@ -480,6 +486,7 @@ export function App() {
         closeDetailDrawer();
         setWorkflowMap(null);
         setWorkflowPreviews({});
+        setProgressState(null);
         return;
       }
 
@@ -487,7 +494,7 @@ export function App() {
 
       for (const [index, workflow] of summaries.entries()) {
         setProgressState({
-          label: `워크플로우 파일 ${index + 1}/${summaries.length} 분석 중`,
+          label: `workflow source를 읽는 중입니다. (${index + 1}/${summaries.length})`,
           current: index + 1,
           total: summaries.length,
         });
@@ -497,6 +504,11 @@ export function App() {
 
       const previewMap = Object.fromEntries(previewEntries);
       setWorkflowPreviews(previewMap);
+      setProgressState({
+        label: 'workflow 간 관계와 맵 레이아웃을 계산하는 중입니다.',
+        current: 1,
+        total: 1,
+      });
       setWorkflowMap(buildWorkflowMap(Object.values(previewMap)));
       void analyzeBranchDiagnostics(repoRef, branch, token, summaries, previewMap);
 
@@ -523,10 +535,10 @@ export function App() {
       setWorkflowDiagnostics({});
       setRepoInsight(null);
       setBranchComparison(null);
+      setProgressState(null);
       closeDetailDrawer();
     } finally {
       setWorkflowLoading(false);
-      setProgressState(null);
     }
   }
 
@@ -534,6 +546,11 @@ export function App() {
     setRepositoryLoading(true);
     setErrorMessage(null);
     closeDetailDrawer();
+    setProgressState({
+      label: '레포 기본 정보와 브랜치 목록을 확인하는 중입니다.',
+      current: 1,
+      total: 1,
+    });
 
     try {
       const parsed = parseRepositoryUrl(formState.repoUrl);
@@ -563,6 +580,7 @@ export function App() {
       setWorkflowDiagnostics({});
       setRepoInsight(null);
       setBranchComparison(null);
+      setProgressState(null);
       closeDetailDrawer();
     } finally {
       setRepositoryLoading(false);
@@ -673,12 +691,12 @@ export function App() {
       });
   }
 
-  function handleExportMarkdown() {
-    if (!repository || !selectedPreview) {
+  function handleExportReport() {
+    if (!repository || !reviewReport) {
       return;
     }
 
-    const markdown = buildReviewMarkdown({
+    const html = buildReviewHtml({
       repository,
       selectedBranch,
       preview: selectedPreview,
@@ -690,11 +708,11 @@ export function App() {
       ciReview: reviewReport,
     });
 
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${selectedPreview.fileName.replace(/\.(ya?ml)$/i, '')}-review.md`;
+    link.download = `${repository.repo}-${selectedBranch}-ci-review.html`;
     link.click();
     window.URL.revokeObjectURL(url);
   }
@@ -749,8 +767,7 @@ export function App() {
 
         {repository ? (
           <ReviewReportPanel
-            onExportMarkdown={handleExportMarkdown}
-            preview={selectedPreview}
+            onExportMarkdown={handleExportReport}
             report={reviewReport}
             repository={repository}
             selectedBranch={selectedBranch}

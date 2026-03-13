@@ -133,9 +133,11 @@ export function RepositoryForm({
         <div className="progress-block">
           <div className="progress-meta">
             <span>{progressState.label}</span>
-            <span>
-              {progressState.current}/{progressState.total}
-            </span>
+            {progressState.total > 1 ? (
+              <span>
+                {progressState.current}/{progressState.total}
+              </span>
+            ) : null}
           </div>
           <div className="progress-track" aria-hidden="true">
             <div

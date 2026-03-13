@@ -801,6 +801,7 @@ textarea {
 .glance-columns,
 .report-stats-grid,
 .report-category-grid,
+.report-stage-grid,
 .report-architecture-grid,
 .report-workflow-grid,
 .report-role-grid {
@@ -873,6 +874,11 @@ textarea {
 }
 
 .report-category-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.report-stage-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 18px;
 }
@@ -1320,6 +1326,7 @@ textarea {
   .glance-columns,
   .report-stats-grid,
   .report-category-grid,
+  .report-stage-grid,
   .report-architecture-grid,
   .report-workflow-grid,
   .report-role-grid {

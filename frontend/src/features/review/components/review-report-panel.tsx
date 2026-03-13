@@ -1,9 +1,8 @@
-import type { CiReviewFinding, CiReviewReport, RepositoryRef, WorkflowPreview } from '../../../types';
+import type { CiReviewFinding, CiReviewReport, RepositoryRef } from '../../../types';
 
 type ReviewReportPanelProps = {
   repository: RepositoryRef;
   selectedBranch: string;
-  preview: WorkflowPreview | null;
   report: CiReviewReport | null;
   onExportMarkdown: () => void;
   onSelectFinding: (finding: CiReviewFinding) => void;
@@ -13,7 +12,6 @@ type ReviewReportPanelProps = {
 export function ReviewReportPanel({
   repository,
   selectedBranch,
-  preview,
   report,
   onExportMarkdown,
   onSelectFinding,
@@ -31,11 +29,11 @@ export function ReviewReportPanel({
         </div>
         <button
           className="button button-secondary"
-          disabled={!preview || !report}
+          disabled={!report}
           onClick={onExportMarkdown}
           type="button"
         >
-          Export Markdown
+          리포트 다운로드
         </button>
       </div>
 
@@ -115,6 +113,34 @@ export function ReviewReportPanel({
               <span className="report-stat-value">{report.stats.failedWorkflowCount}</span>
               <span className="report-stat-label">Failed Workflows</span>
             </article>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Repository Context</p>
+                <h2>레포 특성 단계별 분석</h2>
+              </div>
+            </div>
+
+            <article className="report-card">
+              <span className="detail-label">Repository Summary</span>
+              <strong>{report.repoSummary}</strong>
+            </article>
+
+            <div className="report-stage-grid">
+              {report.repoStages.map((stage) => (
+                <article key={stage.title} className="report-card">
+                  <span className="detail-label">{stage.title}</span>
+                  <strong>{stage.summary}</strong>
+                  <ul className="report-bullet-list report-compact-list">
+                    {stage.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="report-section">

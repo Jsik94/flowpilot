@@ -175,6 +175,8 @@ export function buildCiReviewReport({
       failedWorkflowCount,
     }),
     score,
+    repoSummary: repoInsight?.summary ?? '레포 구조 신호가 아직 제한적입니다.',
+    repoStages: repoInsight?.analysisStages ?? [],
     stats: {
       workflowCount: previews.length,
       preMergeCount,

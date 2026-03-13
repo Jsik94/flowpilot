@@ -33,6 +33,13 @@ type GitHubBranchResponse = {
   };
 };
 
+type GitHubTreeResponse = {
+  tree: Array<{
+    path: string;
+    type: 'blob' | 'tree' | 'commit';
+  }>;
+};
+
 type GitHubFileResponse = {
   name: string;
   path: string;
@@ -349,6 +356,28 @@ export async function fetchRepositoryEntries(
   );
 
   return mapRepositoryEntries(response);
+}
+
+export async function fetchRepositoryTreeEntries(
+  repoRef: Pick<RepositoryRef, 'owner' | 'repo'>,
+  ref?: string,
+  token?: string,
+) {
+  const response = await fetchGitHubJson<GitHubTreeResponse>(
+    `/repos/${repoRef.owner}/${repoRef.repo}/git/trees/${encodeURIComponent(ref || 'HEAD')}?recursive=1`,
+    token,
+  );
+
+  return response.tree.map<RepositoryEntry>((entry) => ({
+    name: entry.path.split('/').pop() || entry.path,
+    path: entry.path,
+    type:
+      entry.type === 'tree'
+        ? 'dir'
+        : entry.type === 'commit'
+          ? 'submodule'
+          : 'file',
+  }));
 }
 
 export async function fetchWorkflowPreview(

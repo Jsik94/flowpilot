@@ -1,19 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBranchComparison, buildRepoInsight, buildReviewMarkdown } from './repo-insights';
+import { buildBranchComparison, buildRepoInsight, buildReviewHtml, buildReviewMarkdown } from './repo-insights';
 import { buildWorkflowGraph } from './workflow-graph';
 
 test('buildRepoInsight detects frameworks and deployment signals', () => {
   const insight = buildRepoInsight(
     [
       { name: 'package.json', path: 'package.json', type: 'file' },
+      { name: 'pnpm-workspace.yaml', path: 'pnpm-workspace.yaml', type: 'file' },
+      { name: 'package.json', path: 'apps/web/package.json', type: 'file' },
       { name: 'Dockerfile', path: 'Dockerfile', type: 'file' },
       { name: 'README.md', path: 'README.md', type: 'file' },
     ],
     JSON.stringify({
+      packageManager: 'pnpm@10.0.0',
       dependencies: {
         react: '^19.0.0',
         next: '^15.0.0',
+      },
+      scripts: {
+        test: 'vitest',
       },
     }),
     'Deploys to Vercel with Docker for preview environments.',
@@ -22,6 +28,9 @@ test('buildRepoInsight detects frameworks and deployment signals', () => {
   assert.ok(insight.frameworks.includes('Node.js'));
   assert.ok(insight.frameworks.includes('Next.js'));
   assert.ok(insight.deploymentSignals.includes('Docker'));
+  assert.equal(insight.packageManager, 'pnpm');
+  assert.equal(insight.monorepo, true);
+  assert.ok(insight.analysisStages.length > 0);
   assert.equal(insight.confidence, 'high');
 });
 
@@ -69,6 +78,17 @@ test('buildReviewMarkdown includes key report sections', () => {
       frameworks: ['Node.js'],
       keyFiles: ['package.json'],
       deploymentSignals: ['Docker'],
+      packageManager: 'pnpm',
+      monorepo: false,
+      workspaceRoots: [],
+      testSignals: ['Vitest'],
+      analysisStages: [
+        {
+          title: '스택과 패키지 매니저',
+          summary: 'Node.js와 pnpm을 사용합니다.',
+          details: ['Frameworks: Node.js', 'Package manager: pnpm'],
+        },
+      ],
       confidence: 'high',
     },
     branchComparison: {
@@ -86,5 +106,46 @@ test('buildReviewMarkdown includes key report sections', () => {
 
   assert.match(markdown, /# FlowPilot Review Report/);
   assert.match(markdown, /## Repository Analysis/);
+  assert.match(markdown, /## Repository Staged Analysis/);
   assert.match(markdown, /## Review Findings/);
+});
+
+test('buildReviewHtml includes repository and workflow sections', () => {
+  const html = buildReviewHtml({
+    repository: {
+      owner: 'octocat',
+      repo: 'hello-world',
+      fullName: 'octocat/hello-world',
+      isPrivate: false,
+      defaultBranch: 'main',
+    },
+    selectedBranch: 'main',
+    preview: null,
+    workflowGraph: null,
+    repoInsight: {
+      summary: 'summary',
+      frameworks: ['Node.js'],
+      keyFiles: ['package.json'],
+      deploymentSignals: ['Docker'],
+      packageManager: 'pnpm',
+      monorepo: false,
+      workspaceRoots: [],
+      testSignals: ['Vitest'],
+      analysisStages: [
+        {
+          title: '스택과 패키지 매니저',
+          summary: 'Node.js와 pnpm을 사용합니다.',
+          details: ['Frameworks: Node.js', 'Package manager: pnpm'],
+        },
+      ],
+      confidence: 'high',
+    },
+    branchComparison: null,
+    runs: [],
+    analysisResult: null,
+    ciReview: null,
+  });
+
+  assert.match(html, /Repository Staged Analysis/);
+  assert.match(html, /FlowPilot Review Report/);
 });

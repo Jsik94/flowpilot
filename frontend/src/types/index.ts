@@ -207,6 +207,12 @@ export type CiReviewReport = {
   headline: string;
   summary: string;
   score: number;
+  repoSummary: string;
+  repoStages: Array<{
+    title: string;
+    summary: string;
+    details: string[];
+  }>;
   stats: {
     workflowCount: number;
     preMergeCount: number;
@@ -319,6 +325,15 @@ export type RepoInsight = {
   frameworks: string[];
   keyFiles: string[];
   deploymentSignals: string[];
+  packageManager: string | null;
+  monorepo: boolean;
+  workspaceRoots: string[];
+  testSignals: string[];
+  analysisStages: Array<{
+    title: string;
+    summary: string;
+    details: string[];
+  }>;
   confidence: 'high' | 'medium' | 'low';
 };
 
