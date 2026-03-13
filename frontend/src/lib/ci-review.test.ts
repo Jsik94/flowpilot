@@ -65,6 +65,7 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
   assert.ok(report.categoryScores.some((category) => category.key === 'performance'));
   assert.ok(report.workflowCards.length > 0);
   assert.ok(report.roleAnalysis.gaps.some((gap) => gap.role === 'Release / Deploy Guard'));
+  assert.ok(report.priorityActions.length > 0);
 });
 
 test('buildCiReviewReport detects overlapping workflow roles', () => {

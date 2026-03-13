@@ -858,6 +858,44 @@ textarea {
   display: grid;
   gap: 8px;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.report-stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  opacity: 0.92;
+}
+
+.report-stat-card.stat-workflows::before {
+  background: #8fb8ff;
+}
+
+.report-stat-card.stat-premerge::before {
+  background: #5dd3ff;
+}
+
+.report-stat-card.stat-postmerge::before {
+  background: #5bd1a5;
+}
+
+.report-stat-card.stat-manual::before {
+  background: #c7d2e4;
+}
+
+.report-stat-card.stat-jobs::before {
+  background: #b68cff;
+}
+
+.report-stat-card.stat-runs::before {
+  background: #f7bf54;
+}
+
+.report-stat-card.stat-failures::before {
+  background: #ff6f7d;
 }
 
 .report-stat-value {
@@ -911,6 +949,34 @@ textarea {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(135deg, var(--accent) 0%, #40f4c4 100%);
+}
+
+.report-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.report-priority-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--item-border);
+  background: var(--item-bg);
+}
+
+.report-priority-card.is-critical {
+  border-color: rgba(255, 111, 125, 0.28);
+}
+
+.report-priority-card.is-warning {
+  border-color: rgba(247, 191, 84, 0.28);
+}
+
+.report-priority-card.is-info {
+  border-color: rgba(143, 184, 255, 0.28);
 }
 
 .report-category-card p,
@@ -1325,6 +1391,7 @@ textarea {
 
   .glance-columns,
   .report-stats-grid,
+  .report-priority-grid,
   .report-category-grid,
   .report-stage-grid,
   .report-architecture-grid,

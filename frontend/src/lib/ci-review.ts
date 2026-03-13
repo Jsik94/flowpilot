@@ -161,6 +161,7 @@ export function buildCiReviewReport({
   const failureInsights = buildFailureInsights(diagnostics);
   const reviewLenses = buildReviewLenses(dedupedFindings, categoryScores);
   const workflowDeepDives = buildWorkflowDeepDives(assessments, diagnostics, dedupedFindings);
+  const priorityActions = buildPriorityActions(dedupedFindings, optimizationInsights);
 
   return {
     headline: buildHeadline(score),
@@ -203,6 +204,7 @@ export function buildCiReviewReport({
     },
     roleAnalysis,
     optimizationInsights,
+    priorityActions,
     failureInsights,
     reviewLenses,
     workflowCards: assessments
@@ -924,6 +926,63 @@ function buildWorkflowDeepDives(
       return right.failurePatterns.length - left.failurePatterns.length;
     })
     .slice(0, 8);
+}
+
+function buildPriorityActions(
+  findings: CiReviewFinding[],
+  optimizationInsights: CiReviewReport['optimizationInsights'],
+): CiReviewReport['priorityActions'] {
+  const actions = findings
+    .filter((finding) => finding.severity === 'critical' || finding.severity === 'warning')
+    .slice(0, 5)
+    .map((finding) => ({
+      id: finding.id,
+      severity: finding.severity,
+      title: finding.summary,
+      workflowName: finding.workflowName,
+      why: finding.impact ?? finding.recommendation,
+      expectedImpact: mapExpectedImpact(finding.category),
+    }));
+
+  if (actions.length >= 3) {
+    return actions;
+  }
+
+  return [
+    ...actions,
+    ...optimizationInsights.latencyRisks.slice(0, 2).map((risk, index) => ({
+      id: `latency-priority-${index}`,
+      severity: 'warning' as const,
+      title: risk,
+      why: '직렬 의존성과 무거운 job 구성이 PR 리드타임을 늘릴 수 있습니다.',
+      expectedImpact: '병렬화 또는 캐시 전략 조정으로 전체 CI 대기 시간을 줄일 수 있습니다.',
+    })),
+    ...optimizationInsights.duplicateWork.slice(0, 1).map((item, index) => ({
+      id: `duplication-priority-${index}`,
+      severity: 'info' as const,
+      title: item,
+      why: '중복 workflow는 수정 누락과 정책 불일치를 만들기 쉽습니다.',
+      expectedImpact: 'reusable workflow나 공통 action으로 정리하면 유지보수 비용이 줄어듭니다.',
+    })),
+  ].slice(0, 5);
+}
+
+function mapExpectedImpact(category: CiReviewFinding['category']) {
+  switch (category) {
+    case 'security':
+      return '권한 범위를 줄이고 외부 action 리스크를 낮출 수 있습니다.';
+    case 'reliability':
+      return 'stuck run과 환경 충돌을 줄여 브랜치 안정성이 올라갑니다.';
+    case 'performance':
+    case 'latency':
+      return 'PR 검증 리드타임과 반복 실행 시간을 줄일 수 있습니다.';
+    case 'coverage':
+      return '문제를 머지 전에 잡아내는 비율이 올라갑니다.';
+    case 'duplication':
+      return '중복된 검증 로직을 줄여 유지보수성과 일관성이 좋아집니다.';
+    default:
+      return 'workflow 구조를 더 읽기 쉽고 수정하기 쉽게 만들 수 있습니다.';
+  }
 }
 
 function formatEstimatedDurationText(diagnostic?: WorkflowDiagnostic) {

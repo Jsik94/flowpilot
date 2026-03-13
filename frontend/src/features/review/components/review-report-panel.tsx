@@ -85,34 +85,57 @@ export function ReviewReportPanel({
           </section>
 
           <section className="report-stats-grid">
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-workflows">
               <span className="report-stat-value">{report.stats.workflowCount}</span>
               <span className="report-stat-label">Workflows</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-premerge">
               <span className="report-stat-value">{report.stats.preMergeCount}</span>
               <span className="report-stat-label">Pre-merge</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-postmerge">
               <span className="report-stat-value">{report.stats.postMergeCount}</span>
               <span className="report-stat-label">Post-merge</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-manual">
               <span className="report-stat-value">{report.stats.manualCount}</span>
               <span className="report-stat-label">Manual / Scheduled</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-jobs">
               <span className="report-stat-value">{report.stats.jobCount}</span>
               <span className="report-stat-label">Jobs</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-runs">
               <span className="report-stat-value">{report.stats.runCount}</span>
               <span className="report-stat-label">Observed Runs</span>
             </article>
-            <article className="report-stat-card">
+            <article className="report-stat-card stat-failures">
               <span className="report-stat-value">{report.stats.failedWorkflowCount}</span>
               <span className="report-stat-label">Failed Workflows</span>
             </article>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Priority Actions</p>
+                <h2>지금 먼저 최적화할 항목</h2>
+              </div>
+            </div>
+
+            <div className="report-priority-grid">
+              {report.priorityActions.map((action) => (
+                <article key={action.id} className={`report-priority-card is-${action.severity}`}>
+                  <div className="report-finding-top">
+                    <span className={`pill pill-${action.severity}`}>{action.severity}</span>
+                    <strong>{action.title}</strong>
+                  </div>
+                  {action.workflowName ? <p className="issue-target">{action.workflowName}</p> : null}
+                  <p><strong>왜 먼저 봐야 하나</strong> {action.why}</p>
+                  <p><strong>기대 효과</strong> {action.expectedImpact}</p>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="report-section">

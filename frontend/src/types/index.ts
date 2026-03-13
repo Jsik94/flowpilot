@@ -260,6 +260,14 @@ export type CiReviewReport = {
     latencyRisks: string[];
     efficiencyTips: string[];
   };
+  priorityActions: Array<{
+    id: string;
+    severity: 'critical' | 'warning' | 'info';
+    title: string;
+    workflowName?: string;
+    why: string;
+    expectedImpact: string;
+  }>;
   failureInsights: {
     summary: string;
     patterns: string[];

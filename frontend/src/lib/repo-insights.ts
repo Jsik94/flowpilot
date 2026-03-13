@@ -142,6 +142,16 @@ export function buildReviewMarkdown(input: {
       ? ciReview.quickWins.map((item) => `- ${item}`).join('\n')
       : '- quick wins unavailable',
     '',
+    '## Priority Actions',
+    ciReview?.priorityActions.length
+      ? ciReview.priorityActions
+          .map(
+            (action) =>
+              `- [${action.severity}] ${action.title}${action.workflowName ? ` (${action.workflowName})` : ''}\n  Why: ${action.why}\n  Expected impact: ${action.expectedImpact}`,
+          )
+          .join('\n')
+      : '- priority actions unavailable',
+    '',
     '## Failure Snapshot',
     ciReview?.failureInsights.items.length
       ? ciReview.failureInsights.items
@@ -344,6 +354,20 @@ export function buildReviewHtml(input: {
         .join('')
     : '<p class="muted">리뷰 finding이 없습니다.</p>';
 
+  const priorityActions = ciReview?.priorityActions.length
+    ? ciReview.priorityActions
+        .map(
+          (action) => `
+            <article class="detail-card severity-${escapeHtml(action.severity)}">
+              <h3>${escapeHtml(action.title)}</h3>
+              ${action.workflowName ? `<p class="muted">${escapeHtml(action.workflowName)}</p>` : ''}
+              <p><strong>왜 먼저 봐야 하나</strong> ${escapeHtml(action.why)}</p>
+              <p><strong>기대 효과</strong> ${escapeHtml(action.expectedImpact)}</p>
+            </article>`,
+        )
+        .join('')
+    : '<p class="muted">우선순위 액션이 아직 없습니다.</p>';
+
   return `<!DOCTYPE html>
 <html lang="ko">
   <head>
@@ -396,6 +420,11 @@ export function buildReviewHtml(input: {
       <section class="section">
         <h2>Repository Staged Analysis</h2>
         <div class="stage-grid">${repoStages}</div>
+      </section>
+
+      <section class="section">
+        <h2>Priority Actions</h2>
+        <div class="detail-grid">${priorityActions}</div>
       </section>
 
       <section class="section">
