@@ -5,6 +5,7 @@ type RunHistoryPanelProps = {
   selectedRunId: number | null;
   selectedRunJobs: RunJobSummary[];
   loading: boolean;
+  errorMessage: string | null;
   onSelectRun: (runId: number) => void;
 };
 
@@ -13,6 +14,7 @@ export function RunHistoryPanel({
   selectedRunId,
   selectedRunJobs,
   loading,
+  errorMessage,
   onSelectRun,
 }: RunHistoryPanelProps) {
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
@@ -31,8 +33,9 @@ export function RunHistoryPanel({
         선택한 workflow 파일의 최근 GitHub Actions 실행을 보여줍니다. run을 고르면 어떤 job이 성공하거나 실패했는지 바로 확인할 수 있습니다.
       </p>
 
+      {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
       {loading ? <p className="empty-state">최근 실행 이력을 불러오는 중입니다.</p> : null}
-      {!loading && runs.length === 0 ? (
+      {!loading && !errorMessage && runs.length === 0 ? (
         <p className="empty-state">이 브랜치에서 확인된 최근 실행 이력이 없습니다.</p>
       ) : null}
 
@@ -68,7 +71,9 @@ export function RunHistoryPanel({
             <span className="badge">{selectedRunJobs.length} jobs</span>
           </div>
 
-          {selectedRunJobs.length === 0 ? (
+          {errorMessage ? (
+            <p className="empty-state">run 상세를 불러오지 못했습니다. 권한과 PAT 설정을 확인하세요.</p>
+          ) : selectedRunJobs.length === 0 ? (
             <p className="empty-state">선택한 run의 job 상세를 불러오는 중이거나, 표시할 job이 없습니다.</p>
           ) : (
             <div className="steps-list">

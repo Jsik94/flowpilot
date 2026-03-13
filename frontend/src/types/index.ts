@@ -30,6 +30,7 @@ export type BranchSummary = {
 
 export type RepositoryFormState = {
   repoUrl: string;
+  repoVisibility: 'public' | 'private';
   username: string;
   token: string;
 };
@@ -162,6 +163,7 @@ export type WorkflowDiagnostic = {
   fileName: string;
   runs: RunSummary[];
   latestRunJobs: RunJobSummary[];
+  runAccessMessage: string | null;
   analysis: AnalysisResult | null;
   estimatedDurationMinutes: number | null;
   failureCount: number;

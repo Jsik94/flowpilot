@@ -124,6 +124,7 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
           },
         ],
         latestRunJobs: [],
+        runAccessMessage: null,
         analysis: null,
         estimatedDurationMinutes: 6.4,
         failureCount: 2,

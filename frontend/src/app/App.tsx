@@ -41,6 +41,7 @@ const SESSION_STORAGE_KEY = 'flowpilot.repository-form';
 const THEME_STORAGE_KEY = 'flowpilot.theme';
 const DEFAULT_FORM_STATE: RepositoryFormState = {
   repoUrl: 'https://github.com/actions/starter-workflows',
+  repoVisibility: 'public',
   username: '',
   token: '',
 };
@@ -61,6 +62,7 @@ export function App() {
   const [workflowRuns, setWorkflowRuns] = useState<RunSummary[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [selectedRunJobs, setSelectedRunJobs] = useState<RunJobSummary[]>([]);
+  const [runErrorMessage, setRunErrorMessage] = useState<string | null>(null);
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
@@ -132,6 +134,7 @@ export function App() {
       const parsed = JSON.parse(saved) as RepositoryFormState;
       setFormState({
         repoUrl: parsed.repoUrl ?? DEFAULT_FORM_STATE.repoUrl,
+        repoVisibility: parsed.repoVisibility === 'private' ? 'private' : 'public',
         username: parsed.username ?? '',
         token: parsed.token ?? '',
       });
@@ -172,6 +175,7 @@ export function App() {
     setWorkflowRuns([]);
     setSelectedRunId(null);
     setSelectedRunJobs([]);
+    setRunErrorMessage(null);
     setAnalysisResult(null);
     setAnalysisLoading(false);
     setSourceFocus(null);
@@ -230,7 +234,7 @@ export function App() {
       return [];
     }
 
-    const jobs = await fetchRunJobs(repository, runId, normalizeToken(formState.token));
+    const jobs = await fetchRunJobs(repository, runId, getEffectiveToken(formState, repository.isPrivate));
     setSelectedRunJobs(jobs);
     return jobs;
   }
@@ -248,7 +252,7 @@ export function App() {
   ): Promise<WorkflowDiagnostic> {
     const repositoryRef = options?.repositoryRef ?? repository;
     const branchName = options?.branch ?? selectedBranch;
-    const token = options?.token ?? normalizeToken(formState.token);
+    const token = options?.token ?? getEffectiveToken(formState, repositoryRef?.isPrivate);
 
     if (!repositoryRef || !branchName) {
       return {
@@ -257,6 +261,7 @@ export function App() {
         fileName: preview.fileName,
         runs: [],
         latestRunJobs: [],
+        runAccessMessage: null,
         analysis: null,
         estimatedDurationMinutes: estimateWorkflowDuration([], buildWorkflowGraph(preview.content, preview.workflowName)),
         failureCount: 0,
@@ -267,11 +272,31 @@ export function App() {
     }
 
     const graph = buildWorkflowGraph(preview.content, preview.workflowName);
-    const runs = options?.runs ?? await fetchWorkflowRuns(repositoryRef, workflow.fileName, branchName, token);
+    let runs = options?.runs ?? [];
+    let latestRunJobs = options?.latestRunJobs ?? [];
+    let runAccessMessage: string | null = null;
+
+    try {
+      runs =
+        options?.runs ??
+        (await fetchWorkflowRuns(repositoryRef, workflow.fileName, branchName, token));
+
+      const latestRun = runs[0] ?? null;
+      latestRunJobs =
+        options?.latestRunJobs ??
+        (latestRun ? await fetchRunJobs(repositoryRef, latestRun.id, token) : []);
+    } catch (error) {
+      if (error instanceof Error && isRunAccessError(error.message)) {
+        runAccessMessage = mapRunAccessError(error.message, {
+          tokenProvided: Boolean(token),
+          isPrivateRepository: repositoryRef.isPrivate,
+        });
+      } else {
+        throw error;
+      }
+    }
+
     const latestRun = runs[0] ?? null;
-    const latestRunJobs =
-      options?.latestRunJobs ??
-      (latestRun ? await fetchRunJobs(repositoryRef, latestRun.id, token) : []);
     const jobsCache = new Map<number, RunJobSummary[]>();
 
     if (latestRun) {
@@ -283,9 +308,23 @@ export function App() {
     const failedRuns = runs.filter((run) => run.status === 'failure').slice(0, 3);
 
     for (const failedRun of failedRuns) {
-      const failedRunJobs =
-        jobsCache.get(failedRun.id) ??
-        (await fetchRunJobs(repositoryRef, failedRun.id, token));
+      let failedRunJobs = jobsCache.get(failedRun.id);
+
+      if (!failedRunJobs) {
+        try {
+          failedRunJobs = await fetchRunJobs(repositoryRef, failedRun.id, token);
+        } catch (error) {
+          if (error instanceof Error && isRunAccessError(error.message)) {
+            runAccessMessage = mapRunAccessError(error.message, {
+              tokenProvided: Boolean(token),
+              isPrivateRepository: repositoryRef.isPrivate,
+            });
+            break;
+          }
+
+          throw error;
+        }
+      }
 
       jobsCache.set(failedRun.id, failedRunJobs);
 
@@ -325,6 +364,7 @@ export function App() {
       fileName: preview.fileName,
       runs,
       latestRunJobs,
+      runAccessMessage,
       analysis,
       estimatedDurationMinutes: estimateWorkflowDuration(runs, graph),
       failureCount: runs.filter((run) => run.status === 'failure').length,
@@ -402,6 +442,7 @@ export function App() {
       setWorkflowRuns(cached.runs);
       setSelectedRunId(cached.runs[0]?.id ?? null);
       setSelectedRunJobs(cached.latestRunJobs);
+      setRunErrorMessage(cached.runAccessMessage);
       setAnalysisResult(cached.analysis);
       return;
     }
@@ -415,6 +456,7 @@ export function App() {
       setWorkflowRuns(diagnostic.runs);
       setSelectedRunId(diagnostic.runs[0]?.id ?? null);
       setSelectedRunJobs(diagnostic.latestRunJobs);
+      setRunErrorMessage(diagnostic.runAccessMessage);
       setAnalysisResult(diagnostic.analysis);
       upsertWorkflowDiagnostic(diagnostic);
     } catch (error) {
@@ -427,6 +469,7 @@ export function App() {
       setWorkflowRuns([]);
       setSelectedRunId(null);
       setSelectedRunJobs([]);
+      setRunErrorMessage(null);
       setAnalysisResult(null);
     } finally {
       setRunLoading(false);
@@ -478,6 +521,7 @@ export function App() {
   ) {
     setWorkflowLoading(true);
     setErrorMessage(null);
+    setRunErrorMessage(null);
     setSelectedBranch(branch);
     setProgressState({
       label: '브랜치의 workflow 목록을 확인하는 중입니다.',
@@ -562,11 +606,18 @@ export function App() {
 
     try {
       const parsed = parseRepositoryUrl(formState.repoUrl);
-      const token = normalizeToken(formState.token);
+      const token = getEffectiveToken(formState);
       const repoRef = await fetchRepository(parsed, token);
       const repoBranches = await fetchBranches(repoRef, token);
       const orderedBranches = orderBranches(repoBranches, repoRef.defaultBranch);
       const initialBranch = orderedBranches[0]?.name ?? repoRef.defaultBranch;
+
+      if (repoRef.isPrivate !== (formState.repoVisibility === 'private')) {
+        persistFormState({
+          ...formState,
+          repoVisibility: repoRef.isPrivate ? 'private' : 'public',
+        });
+      }
 
       setRepository(repoRef);
       setBranches(orderedBranches);
@@ -577,7 +628,7 @@ export function App() {
       const message =
         error instanceof Error
           ? mapLoadError(error.message, {
-              tokenProvided: Boolean(normalizeToken(formState.token)),
+              tokenProvided: Boolean(getEffectiveToken(formState)),
               repositoryAccess: true,
             })
           : '레포 정보를 불러오지 못했습니다.';
@@ -593,6 +644,7 @@ export function App() {
       setRepoInsight(null);
       setBranchComparison(null);
       setProgressState(null);
+      setRunErrorMessage(null);
       closeDetailDrawer();
     } finally {
       setRepositoryLoading(false);
@@ -675,7 +727,7 @@ export function App() {
     void loadBranchWorkflows(
       repository,
       branch,
-      normalizeToken(formState.token),
+      getEffectiveToken(formState, repository.isPrivate),
       selectedWorkflowId || undefined,
     );
   }
@@ -687,6 +739,7 @@ export function App() {
 
     setSelectedRunId(runId);
     setSelectedRunJobs([]);
+    setRunErrorMessage(null);
     setRunLoading(true);
     setAnalysisResult(null);
 
@@ -697,6 +750,18 @@ export function App() {
         }
 
         return runWorkflowSummary(selectedPreview, workflowRuns, jobs);
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error && isRunAccessError(error.message)
+            ? mapRunAccessError(error.message, {
+                tokenProvided: Boolean(getEffectiveToken(formState, repository?.isPrivate)),
+                isPrivateRepository: repository?.isPrivate ?? formState.repoVisibility === 'private',
+              })
+            : '선택한 run의 job 정보를 불러오지 못했습니다.';
+
+        setRunErrorMessage(message);
+        setSelectedRunJobs([]);
       })
       .finally(() => {
         setRunLoading(false);
@@ -836,6 +901,7 @@ export function App() {
                     selectedJobId={selectedJobId}
                   />
                   <RunHistoryPanel
+                    errorMessage={runErrorMessage}
                     loading={runLoading}
                     onSelectRun={handleSelectRun}
                     runs={workflowRuns}
@@ -891,6 +957,43 @@ function mapLoadError(
 function normalizeToken(token: string) {
   const trimmed = token.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function getEffectiveToken(
+  formState: RepositoryFormState,
+  isPrivateRepository = formState.repoVisibility === 'private',
+) {
+  return isPrivateRepository ? normalizeToken(formState.token) : undefined;
+}
+
+function isRunAccessError(message: string) {
+  return message.includes('401') || message.includes('403') || message.includes('404');
+}
+
+function mapRunAccessError(
+  message: string,
+  options?: {
+    tokenProvided?: boolean;
+    isPrivateRepository?: boolean;
+  },
+) {
+  if (message.includes('401')) {
+    return 'run 실행 이력을 읽을 권한이 없습니다. PAT 값과 Actions 읽기 권한을 확인하세요.';
+  }
+
+  if (message.includes('403')) {
+    return options?.tokenProvided
+      ? 'run 실행 이력 조회 권한이 부족하거나 rate limit에 걸렸습니다. PAT에 Actions 읽기 권한이 있는지 확인하세요.'
+      : 'run 실행 이력은 현재 권한으로 조회할 수 없습니다. private 레포라면 Actions 읽기 권한이 있는 PAT를 입력하세요.';
+  }
+
+  if (message.includes('404')) {
+    return options?.isPrivateRepository
+      ? 'private 레포의 run 실행 이력을 조회하지 못했습니다. PAT에 Actions 읽기 권한이 있는지 확인하세요.'
+      : '이 workflow의 run 실행 이력을 아직 읽을 수 없거나, 표시할 run이 없습니다.';
+  }
+
+  return 'run 실행 이력을 불러오지 못했습니다.';
 }
 
 function getInitialTheme(): ThemeMode {

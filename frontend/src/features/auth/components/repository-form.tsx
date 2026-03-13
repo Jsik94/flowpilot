@@ -37,9 +37,10 @@ export function RepositoryForm({
   onBranchChange,
 }: RepositoryFormProps) {
   const [showTokenHelp, setShowTokenHelp] = useState(false);
-  const tokenGuidance = connectedRepo?.isPrivate
-    ? '현재 연결된 레포는 private 입니다. workflow와 run 정보를 읽으려면 PAT가 필요합니다.'
-    : '공개 레포는 PAT 없이도 조회할 수 있습니다. private 레포 또는 권한 제한이 걸린 경우에만 입력하세요.';
+  const isPrivateMode = value.repoVisibility === 'private';
+  const tokenGuidance = connectedRepo?.isPrivate || isPrivateMode
+    ? 'private 레포는 PAT가 필요할 수 있습니다. workflow source와 run 이력을 읽으려면 Actions/Contents 읽기 권한을 포함하세요.'
+    : '공개 레포는 PAT 없이도 조회할 수 있습니다. private 레포거나 권한 제한이 걸린 경우에만 입력하세요.';
 
   return (
     <section className="panel panel-hero">
@@ -62,7 +63,7 @@ export function RepositoryForm({
       </div>
 
       <div className="repository-form">
-        <label>
+        <label className="repository-url-field">
           <span>Repository URL</span>
           <input
             value={value.repoUrl}
@@ -75,43 +76,79 @@ export function RepositoryForm({
             placeholder="https://github.com/owner/repo"
           />
         </label>
-        <label>
-          <span>GitHub Username</span>
-          <input
-            value={value.username}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                username: event.target.value,
-              })
-            }
-            placeholder="username"
-          />
-        </label>
-        <label>
-          <span className="field-label-row">
-            <span>Personal Access Token (Optional)</span>
+
+        <div className="visibility-field">
+          <span>Repository Visibility</span>
+          <div className="visibility-toggle" role="group" aria-label="Repository visibility">
             <button
-              aria-expanded={showTokenHelp}
-              className="field-help-button"
-              onClick={() => setShowTokenHelp((current) => !current)}
+              className={`visibility-option ${!isPrivateMode ? 'is-active' : ''}`}
+              onClick={() =>
+                onChange({
+                  ...value,
+                  repoVisibility: 'public',
+                })
+              }
               type="button"
             >
-              i
+              Public
             </button>
-          </span>
-          <input
-            value={value.token}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                token: event.target.value,
-              })
-            }
-            placeholder="public repo면 비워도 됩니다"
-            type="password"
-          />
-        </label>
+            <button
+              className={`visibility-option ${isPrivateMode ? 'is-active' : ''}`}
+              onClick={() =>
+                onChange({
+                  ...value,
+                  repoVisibility: 'private',
+                })
+              }
+              type="button"
+            >
+              Private
+            </button>
+          </div>
+        </div>
+
+        {isPrivateMode ? (
+          <div className="private-auth-grid">
+            <label>
+              <span>GitHub Username</span>
+              <input
+                value={value.username}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    username: event.target.value,
+                  })
+                }
+                placeholder="username"
+              />
+            </label>
+            <label>
+              <span className="field-label-row">
+                <span>Personal Access Token</span>
+                <button
+                  aria-expanded={showTokenHelp}
+                  className="field-help-button"
+                  onClick={() => setShowTokenHelp((current) => !current)}
+                  type="button"
+                >
+                  i
+                </button>
+              </span>
+              <input
+                value={value.token}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    token: event.target.value,
+                  })
+                }
+                placeholder="private repo access token"
+                type="password"
+              />
+            </label>
+          </div>
+        ) : null}
+
         <div className="form-actions">
           <button
             className="button button-primary"
@@ -121,12 +158,17 @@ export function RepositoryForm({
           >
             {loading ? 'Loading...' : 'Load Repository'}
           </button>
+          <p className="panel-note form-actions-note">
+            {isPrivateMode
+              ? 'private 레포라면 PAT를 넣고 연결하세요.'
+              : 'public 레포는 바로 조회할 수 있습니다.'}
+          </p>
         </div>
       </div>
 
       <p className="panel-note token-guidance">{tokenGuidance}</p>
 
-      {showTokenHelp ? (
+      {isPrivateMode && showTokenHelp ? (
         <div className="token-help-panel">
           <strong>PAT 발급 방법</strong>
           <ol className="token-help-list">
@@ -138,7 +180,7 @@ export function RepositoryForm({
             <li>생성 후 토큰은 한 번만 보이므로 바로 복사해서 여기에 붙여 넣습니다.</li>
           </ol>
           <p className="panel-note">
-            공개 레포는 PAT 없이도 조회됩니다. private 레포거나 권한이 필요한 run 정보가 막힐 때만 입력하세요.
+            private 레포에서 run 이력까지 읽으려면 `Actions: Read-only` 권한이 포함되어야 합니다.
           </p>
         </div>
       ) : null}
