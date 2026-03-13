@@ -268,6 +268,23 @@ export type CiReviewReport = {
     why: string;
     expectedImpact: string;
   }>;
+  recentActivity: {
+    windowLabel: string;
+    totalRuns: number;
+    successRuns: number;
+    failureRuns: number;
+    runningRuns: number;
+    successRate: number | null;
+    topWorkflows: Array<{
+      workflowName: string;
+      fileName: string;
+      runCount: number;
+      successCount: number;
+      failureCount: number;
+      runningCount: number;
+      failureRate: number | null;
+    }>;
+  };
   failureInsights: {
     summary: string;
     patterns: string[];

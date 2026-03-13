@@ -152,6 +152,24 @@ export function buildReviewMarkdown(input: {
           .join('\n')
       : '- priority actions unavailable',
     '',
+    '## Recent 3-Day Activity',
+    ciReview
+      ? `- Total runs: ${ciReview.recentActivity.totalRuns}\n- Success: ${ciReview.recentActivity.successRuns}\n- Failure: ${ciReview.recentActivity.failureRuns}\n- Running: ${ciReview.recentActivity.runningRuns}\n- Success rate: ${
+          ciReview.recentActivity.successRate != null ? `${ciReview.recentActivity.successRate}%` : 'n/a'
+        }`
+      : '- recent activity unavailable',
+    '',
+    ciReview?.recentActivity.topWorkflows.length
+      ? ciReview.recentActivity.topWorkflows
+          .map(
+            (workflow) =>
+              `- ${workflow.workflowName} (${workflow.fileName}): runs ${workflow.runCount}, success ${workflow.successCount}, failure ${workflow.failureCount}, failure rate ${
+                workflow.failureRate != null ? `${workflow.failureRate}%` : 'n/a'
+              }`,
+          )
+          .join('\n')
+      : '- workflow activity unavailable',
+    '',
     '## Failure Snapshot',
     ciReview?.failureInsights.items.length
       ? ciReview.failureInsights.items
@@ -425,6 +443,35 @@ export function buildReviewHtml(input: {
       <section class="section">
         <h2>Priority Actions</h2>
         <div class="detail-grid">${priorityActions}</div>
+      </section>
+
+      <section class="section">
+        <h2>Recent 3-Day Activity</h2>
+        <div class="detail-grid">
+          <article class="detail-card">
+            <h3>Total Runs</h3>
+            <p>${escapeHtml(String(ciReview?.recentActivity.totalRuns ?? 0))}</p>
+          </article>
+          <article class="detail-card">
+            <h3>Success Rate</h3>
+            <p>${escapeHtml(ciReview?.recentActivity.successRate != null ? `${ciReview.recentActivity.successRate}%` : '-')}</p>
+          </article>
+        </div>
+        ${
+          ciReview?.recentActivity.topWorkflows.length
+            ? `<div class="detail-grid" style="margin-top:16px;">${ciReview.recentActivity.topWorkflows
+                .map(
+                  (workflow) => `
+                    <article class="detail-card">
+                      <h3>${escapeHtml(workflow.workflowName)}</h3>
+                      <p class="muted">${escapeHtml(workflow.fileName)}</p>
+                      <p>runs ${escapeHtml(String(workflow.runCount))} · success ${escapeHtml(String(workflow.successCount))} · failure ${escapeHtml(String(workflow.failureCount))}</p>
+                      <p class="muted">failure rate ${escapeHtml(workflow.failureRate != null ? `${workflow.failureRate}%` : '-')}</p>
+                    </article>`,
+                )
+                .join('')}</div>`
+            : '<p class="muted">최근 3일 실행 통계가 없습니다.</p>'
+        }
       </section>
 
       <section class="section">

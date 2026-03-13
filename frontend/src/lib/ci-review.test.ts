@@ -69,6 +69,7 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
 });
 
 test('buildCiReviewReport detects overlapping workflow roles', () => {
+  const now = new Date();
   const report = buildCiReviewReport({
     selectedBranch: 'main',
     previews: [
@@ -98,7 +99,30 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
         workflowId: PREVIEW.path,
         workflowName: PREVIEW.workflowName,
         fileName: PREVIEW.fileName,
-        runs: [],
+        runs: [
+          {
+            id: 1,
+            runNumber: 12,
+            title: 'CI failure',
+            branch: 'main',
+            event: 'pull_request',
+            status: 'failure',
+            startedAt: now.toISOString(),
+            completedAt: now.toISOString(),
+            durationMinutes: 6.4,
+          },
+          {
+            id: 2,
+            runNumber: 13,
+            title: 'CI success',
+            branch: 'main',
+            event: 'pull_request',
+            status: 'success',
+            startedAt: now.toISOString(),
+            completedAt: now.toISOString(),
+            durationMinutes: 5.2,
+          },
+        ],
         latestRunJobs: [],
         analysis: null,
         estimatedDurationMinutes: 6.4,
@@ -136,4 +160,6 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
   assert.ok(report.failureInsights.patterns.length > 0);
   assert.ok(report.reviewLenses.length > 0);
   assert.ok(report.workflowDeepDives.length > 0);
+  assert.equal(report.recentActivity.totalRuns, 2);
+  assert.ok(report.recentActivity.topWorkflows.length > 0);
 });

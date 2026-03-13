@@ -115,7 +115,66 @@ export function ReviewReportPanel({
             </article>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Recent Activity</p>
+                <h2>{report.recentActivity.windowLabel} 워크플로우 사용 통계</h2>
+              </div>
+            </div>
+
+            <div className="report-activity-summary-grid">
+              <article className="report-stat-card stat-runs">
+                <span className="report-stat-value">{report.recentActivity.totalRuns}</span>
+                <span className="report-stat-label">Total Runs</span>
+              </article>
+              <article className="report-stat-card stat-postmerge">
+                <span className="report-stat-value">{report.recentActivity.successRuns}</span>
+                <span className="report-stat-label">Succeeded</span>
+              </article>
+              <article className="report-stat-card stat-failures">
+                <span className="report-stat-value">{report.recentActivity.failureRuns}</span>
+                <span className="report-stat-label">Failed</span>
+              </article>
+              <article className="report-stat-card stat-premerge">
+                <span className="report-stat-value">
+                  {report.recentActivity.successRate != null ? `${report.recentActivity.successRate}%` : '-'}
+                </span>
+                <span className="report-stat-label">Success Rate</span>
+              </article>
+            </div>
+
+            <div className="report-activity-grid">
+              {report.recentActivity.topWorkflows.length > 0 ? (
+                report.recentActivity.topWorkflows.map((workflow) => (
+                  <article key={workflow.fileName} className="report-card report-activity-card">
+                    <div className="report-workflow-top">
+                      <div>
+                        <strong>{workflow.workflowName}</strong>
+                        <p className="issue-target">{workflow.fileName}</p>
+                      </div>
+                      <span className="badge">{workflow.runCount} runs</span>
+                    </div>
+                    <div className="report-workflow-meta">
+                      <span>success {workflow.successCount}</span>
+                      <span>failure {workflow.failureCount}</span>
+                      <span>running {workflow.runningCount}</span>
+                    </div>
+                    <p className="report-workflow-inline-meta">
+                      실패율 {workflow.failureRate != null ? `${workflow.failureRate}%` : '-'}
+                    </p>
+                  </article>
+                ))
+              ) : (
+                <article className="report-card">
+                  <strong>최근 3일 실행 이력 없음</strong>
+                  <p>선택 브랜치 기준으로 최근 3일 내 관찰된 workflow run이 없습니다.</p>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Priority Actions</p>
@@ -138,7 +197,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Repository Context</p>
@@ -166,7 +225,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Failure Snapshot</p>
@@ -217,7 +276,7 @@ export function ReviewReportPanel({
             </article>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Workflow Structure</p>
@@ -244,7 +303,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Role Analysis</p>
@@ -291,7 +350,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Optimization</p>
@@ -344,7 +403,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">CI Evaluation</p>
@@ -354,7 +413,7 @@ export function ReviewReportPanel({
 
             <div className="report-category-grid">
               {report.categoryScores.map((category) => (
-                <article key={category.key} className="report-category-card">
+                <article key={category.key} className={`report-category-card category-${category.key}`}>
                   <div className="report-category-top">
                     <strong>{category.label}</strong>
                     <span className="badge">{category.score}점</span>
@@ -368,7 +427,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Review Lenses</p>
@@ -378,7 +437,7 @@ export function ReviewReportPanel({
 
             <div className="report-category-grid">
               {report.reviewLenses.map((lens) => (
-                <article key={lens.key} className="report-category-card report-lens-card">
+                <article key={lens.key} className={`report-category-card report-lens-card category-${lens.key}`}>
                   <div className="report-category-top">
                     <strong>{lens.label}</strong>
                     <span className="badge">{lens.findings.length} findings</span>
@@ -402,7 +461,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Workflow Cards</p>
@@ -439,7 +498,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Workflow Deep Dive</p>
@@ -515,7 +574,7 @@ export function ReviewReportPanel({
             </div>
           </section>
 
-          <section className="report-section">
+          <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Deep Review</p>
