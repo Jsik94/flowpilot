@@ -3,6 +3,7 @@ import type { AnalysisResult, BranchComparison, RepoInsight, RepositoryRef, RunS
 type ReviewReportPanelProps = {
   repository: RepositoryRef;
   selectedBranch: string;
+  workflowCount: number;
   preview: WorkflowPreview | null;
   workflowGraph: WorkflowGraph | null;
   repoInsight: RepoInsight | null;
@@ -15,6 +16,7 @@ type ReviewReportPanelProps = {
 export function ReviewReportPanel({
   repository,
   selectedBranch,
+  workflowCount,
   preview,
   workflowGraph,
   repoInsight,
@@ -28,7 +30,7 @@ export function ReviewReportPanel({
       <div className="panel-header">
         <div>
           <p className="eyebrow">Review Report</p>
-          <h2>{preview?.workflowName ?? '워크플로우 리뷰 준비 중'}</h2>
+          <h2>브랜치 전체 CI 리뷰</h2>
         </div>
         <button
           className="button button-secondary"
@@ -44,8 +46,8 @@ export function ReviewReportPanel({
         <article className="report-card">
           <span className="detail-label">Overview</span>
           <strong>{repository.fullName}</strong>
-          <p>브랜치 `{selectedBranch}` 기준 workflow 구조와 레포 분석을 함께 요약합니다.</p>
-          <p>{analysisResult?.summary ?? 'Analyze Workflow를 누르면 리뷰 요약이 더 정교해집니다.'}</p>
+          <p>브랜치 `{selectedBranch}` 기준 workflow {workflowCount}개와 레포 신호를 함께 검토합니다.</p>
+          <p>{analysisResult?.summary ?? '선택된 workflow의 AI 요약은 드로어 안에서 확인할 수 있습니다.'}</p>
         </article>
 
         <article className="report-card">
@@ -63,18 +65,18 @@ export function ReviewReportPanel({
         </article>
 
         <article className="report-card">
-          <span className="detail-label">Workflow Structure</span>
-          <strong>현재 구조 요약</strong>
-          <p>Jobs {workflowGraph?.jobs.length ?? 0}개, 최근 runs {runs.length}개를 기준으로 검토합니다.</p>
-          <p>{workflowGraph?.jobs.map((job) => job.title).slice(0, 4).join(', ') || '선택된 workflow 없음'}</p>
+          <span className="detail-label">CI Perspective</span>
+          <strong>현재 CI 흐름 평가</strong>
+          <p>Jobs {workflowGraph?.jobs.length ?? 0}개, 최근 runs {runs.length}개를 기준으로 현재 CI 흐름을 요약합니다.</p>
+          <p>{workflowGraph?.jobs.map((job) => job.title).slice(0, 4).join(', ') || '아직 선택된 workflow가 없습니다.'}</p>
         </article>
       </div>
 
       <div className="report-section">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Top Actions</p>
-            <h2>우선순위 액션</h2>
+            <p className="eyebrow">CI Review</p>
+            <h2>평가와 개선 포인트</h2>
           </div>
         </div>
 
@@ -92,7 +94,7 @@ export function ReviewReportPanel({
             ))}
           </div>
         ) : (
-          <p className="empty-state">AI 분석을 실행하면 우선순위 액션을 이 리포트 상단에 요약합니다.</p>
+          <p className="empty-state">선택한 workflow를 기준으로 CI 관점의 평가와 개선 포인트를 정리합니다.</p>
         )}
       </div>
     </section>

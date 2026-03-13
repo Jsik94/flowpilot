@@ -508,18 +508,27 @@ textarea {
   font-size: 0.76rem;
 }
 
-.legend-pre-merge {
-  border-color: rgba(143, 184, 255, 0.32);
-  color: #b8d2ff;
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 999px;
 }
 
-.legend-post-merge {
-  border-color: rgba(91, 209, 165, 0.32);
-  color: #89ffdb;
+.legend-pre-merge-dot {
+  background: #8fb8ff;
+  box-shadow: 0 0 0 6px rgba(143, 184, 255, 0.14);
 }
 
-.legend-manual {
-  border-color: rgba(214, 222, 239, 0.22);
+.legend-post-merge-dot {
+  background: #5bd1a5;
+  box-shadow: 0 0 0 6px rgba(91, 209, 165, 0.14);
+}
+
+.legend-manual-dot {
+  background: #d6deef;
+  box-shadow: 0 0 0 6px rgba(214, 222, 239, 0.12);
 }
 
 .map-panel-actions {
@@ -745,6 +754,10 @@ textarea {
   color: var(--muted);
 }
 
+.report-panel {
+  margin-top: 18px;
+}
+
 .report-section {
   margin-top: 20px;
   padding-top: 20px;
@@ -819,6 +832,7 @@ textarea {
 .code-preview {
   margin: 18px 0 0;
   padding: 18px;
+  max-height: 520px;
   border-radius: 18px;
   overflow: auto;
   background: var(--code-bg);

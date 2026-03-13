@@ -243,6 +243,7 @@ function assignLevels(nodes: WorkflowMapNode[]) {
 
 function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
   const strongEdgeKeys = new Set(strongEdges.map((edge) => toEdgeKey(edge.from, edge.to)));
+  const seenEdgeKeys = new Set(strongEdgeKeys);
   const weakEdges: GraphEdge[] = [];
 
   for (let index = 0; index < nodes.length; index += 1) {
@@ -256,38 +257,111 @@ function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
 
       const sharesTrigger = left.triggers.some((trigger) => right.triggers.includes(trigger));
       const sharesBranchRule = left.branchRules.some((rule) => right.branchRules.includes(rule));
+      const sharesBranchTarget = hasSharedBranchTarget(left.branchRules, right.branchRules);
+      const relatedIntent = hasRelatedWorkflowIntent(left, right);
+      const sequentialPhase = hasSequentialPhaseFlow(left, right);
 
-      if (!sharesTrigger || !sharesBranchRule) {
+      if (
+        !(sharesTrigger && sharesBranchRule) &&
+        !(sharesBranchTarget && relatedIntent && sequentialPhase)
+      ) {
         continue;
       }
 
-      const directionalKey =
-        left.level <= right.level
-          ? toEdgeKey(left.id, right.id)
-          : toEdgeKey(right.id, left.id);
+      const [from, to] = getDirectionalPair(left, right);
+      const directionalKey = toEdgeKey(from, to);
 
-      if (strongEdgeKeys.has(directionalKey)) {
+      if (seenEdgeKeys.has(directionalKey)) {
         continue;
       }
 
-      if (left.level <= right.level) {
-        weakEdges.push({
-          from: left.id,
-          to: right.id,
-          kind: 'weak',
-        });
-      } else {
-        weakEdges.push({
-          from: right.id,
-          to: left.id,
-          kind: 'weak',
-        });
-      }
+      seenEdgeKeys.add(directionalKey);
+      weakEdges.push({
+        from,
+        to,
+        kind: 'weak',
+      });
     }
   }
 
   return weakEdges;
 }
+
+function getDirectionalPair(left: WorkflowMapNode, right: WorkflowMapNode) {
+  if (left.phaseOrder !== right.phaseOrder) {
+    return left.phaseOrder < right.phaseOrder ? [left.id, right.id] : [right.id, left.id];
+  }
+
+  if (left.level !== right.level) {
+    return left.level <= right.level ? [left.id, right.id] : [right.id, left.id];
+  }
+
+  return left.workflowName.localeCompare(right.workflowName) <= 0
+    ? [left.id, right.id]
+    : [right.id, left.id];
+}
+
+function hasSharedBranchTarget(leftRules: string[], rightRules: string[]) {
+  const leftBranches = new Set(leftRules.map(extractBranchTarget).filter(Boolean));
+  const rightBranches = new Set(rightRules.map(extractBranchTarget).filter(Boolean));
+
+  return [...leftBranches].some((branch) => rightBranches.has(branch));
+}
+
+function extractBranchTarget(rule: string) {
+  const [, branch] = rule.split(':');
+  return branch?.trim() ?? '';
+}
+
+function hasSequentialPhaseFlow(left: WorkflowMapNode, right: WorkflowMapNode) {
+  const ordered = [left, right].sort((a, b) => a.phaseOrder - b.phaseOrder);
+  const from = ordered[0]?.phaseLabel;
+  const to = ordered[1]?.phaseLabel;
+
+  if (!from || !to || from === to) {
+    return false;
+  }
+
+  return (
+    (from === 'PR' && ['Push', 'Pipeline', 'Release'].includes(to)) ||
+    (from === 'Push' && ['Pipeline', 'Release'].includes(to)) ||
+    (from === 'Pipeline' && to === 'Release')
+  );
+}
+
+function hasRelatedWorkflowIntent(left: WorkflowMapNode, right: WorkflowMapNode) {
+  const leftTokens = extractIntentTokens(`${left.workflowName} ${left.fileName}`);
+  const rightTokens = extractIntentTokens(`${right.workflowName} ${right.fileName}`);
+
+  return [...leftTokens].some((token) => rightTokens.has(token));
+}
+
+function extractIntentTokens(value: string) {
+  return new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 3)
+      .filter((token) => !GENERIC_WORKFLOW_TOKENS.has(token)),
+  );
+}
+
+const GENERIC_WORKFLOW_TOKENS = new Set([
+  'github',
+  'workflow',
+  'workflows',
+  'actions',
+  'action',
+  'pipeline',
+  'check',
+  'checks',
+  'job',
+  'jobs',
+  'main',
+  'yml',
+  'yaml',
+  'ci',
+]);
 
 function toEdgeKey(from: string, to: string) {
   return `${from}::${to}`;

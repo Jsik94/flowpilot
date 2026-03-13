@@ -1,10 +1,9 @@
-import type { RunSummary, WorkflowGraph } from '../../../types';
+import type { WorkflowGraph } from '../../../types';
 
 type GraphCanvasProps = {
   graph: WorkflowGraph | null;
   loading: boolean;
   selectedJobId: string;
-  selectedRun: RunSummary | null;
   onSelectJob: (jobId: string) => void;
 };
 
@@ -12,7 +11,6 @@ export function GraphCanvas({
   graph,
   loading,
   selectedJobId,
-  selectedRun,
   onSelectJob,
 }: GraphCanvasProps) {
   const levels = graph
@@ -34,15 +32,9 @@ export function GraphCanvas({
         </div>
       </div>
 
-      {selectedRun ? (
-        <p className="panel-note">
-          현재 선택된 실행은 <strong>#{selectedRun.runNumber}</strong> 입니다. 아래 Job 카드와 Step Flow는 이 실행 결과를 기준으로 상태를 반영합니다.
-        </p>
-      ) : (
-        <p className="panel-note">
-          run을 선택하면 어떤 job과 step이 성공하거나 실패했는지 이 그래프에 바로 반영됩니다.
-        </p>
-      )}
+      <p className="panel-note">
+        이 그래프는 이 workflow 파일 내부에서 job이 어떤 순서와 의존성으로 흘러가는지 보여줍니다.
+      </p>
 
       {loading ? <p className="empty-state">브랜치 기준 그래프를 구성하는 중입니다.</p> : null}
       {!loading && !graph ? (
@@ -98,14 +90,9 @@ export function GraphCanvas({
                 {selectedJob.steps.map((step, index) => (
                   <div key={step.id} className="step-flow-item">
                     <article className="step-flow-card">
-                      <div className="step-flow-top">
-                        <span className={`pill pill-${step.kind === 'run' ? 'warning' : step.kind === 'uses' ? 'info' : 'neutral'}`}>
-                          {step.kind}
-                        </span>
-                        <span className={`pill pill-${step.executionState ?? 'neutral'}`}>
-                          {step.executionState ?? 'neutral'}
-                        </span>
-                      </div>
+                      <span className={`pill pill-${step.kind === 'run' ? 'warning' : step.kind === 'uses' ? 'info' : 'neutral'}`}>
+                        {step.kind}
+                      </span>
                       <strong>{step.title}</strong>
                       <p>{step.detail || 'detail 없음'}</p>
                     </article>

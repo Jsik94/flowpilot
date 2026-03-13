@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AnalysisPanel } from '../features/analysis/components/analysis-panel';
+import { useEffect, useState } from 'react';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
-import { ChangeRequestPanel } from '../features/recommend/components/change-request-panel';
 import { ReviewReportPanel } from '../features/review/components/review-report-panel';
 import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
@@ -19,16 +17,13 @@ import {
   fetchWorkflowSummaries,
   parseRepositoryUrl,
 } from '../lib/github';
-import { recommendWorkflowChange } from '../lib/recommend';
 import { buildBranchComparison, buildRepoInsight, buildReviewMarkdown } from '../lib/repo-insights';
-import { applyRunJobsToWorkflowGraph } from '../lib/workflow-execution';
 import { buildWorkflowGraph } from '../lib/workflow-graph';
 import { buildWorkflowMap } from '../lib/workflow-map';
 import type {
   AnalysisResult,
   BranchComparison,
   BranchSummary,
-  RecommendationResult,
   RepoInsight,
   RepositoryFormState,
   RepositoryRef,
@@ -64,18 +59,11 @@ export function App() {
   const [workflowRuns, setWorkflowRuns] = useState<RunSummary[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [selectedRunJobs, setSelectedRunJobs] = useState<RunJobSummary[]>([]);
-  const [showWeakLinks, setShowWeakLinks] = useState(true);
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [recommendTemplate, setRecommendTemplate] = useState('custom');
-  const [recommendDetails, setRecommendDetails] = useState('');
-  const [recommendationResult, setRecommendationResult] = useState<RecommendationResult | null>(null);
-  const [recommendationLoading, setRecommendationLoading] = useState(false);
-  const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [repoInsight, setRepoInsight] = useState<RepoInsight | null>(null);
   const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -85,14 +73,6 @@ export function App() {
     total: number;
   } | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const selectedRun = workflowRuns.find((run) => run.id === selectedRunId) ?? null;
-  const hydratedWorkflowGraph = useMemo(
-    () =>
-      workflowGraph
-        ? applyRunJobsToWorkflowGraph(workflowGraph, selectedRunJobs)
-        : null,
-    [selectedRunJobs, workflowGraph],
-  );
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -146,13 +126,7 @@ export function App() {
     setSelectedRunId(null);
     setSelectedRunJobs([]);
     setAnalysisResult(null);
-    setAnalysisError(null);
     setAnalysisLoading(false);
-    setRecommendationResult(null);
-    setRecommendationError(null);
-    setRecommendationLoading(false);
-    setRecommendTemplate('custom');
-    setRecommendDetails('');
   }
 
   function persistFormState(nextState: RepositoryFormState) {
@@ -181,29 +155,60 @@ export function App() {
     );
   }
 
-  async function loadRunJobs(runId: number) {
+  async function loadRunJobs(runId: number): Promise<RunJobSummary[]> {
     if (!repository) {
       setSelectedRunJobs([]);
-      return;
+      return [];
     }
 
     const jobs = await fetchRunJobs(repository, runId, formState.token);
     setSelectedRunJobs(jobs);
+    return jobs;
   }
 
-  async function loadWorkflowRunsForSelection(workflow: WorkflowSummary) {
+  async function runWorkflowSummary(
+    preview: WorkflowPreview,
+    runs: RunSummary[],
+    runJobs: RunJobSummary[],
+  ) {
+    if (!repository) {
+      setAnalysisResult(null);
+      return;
+    }
+
+    setAnalysisLoading(true);
+
+    try {
+      const result = await analyzeWorkflow({
+        repository: {
+          owner: repository.owner,
+          repo: repository.repo,
+        },
+        branch: selectedBranch,
+        preview,
+        runs,
+        runJobs,
+      });
+      setAnalysisResult(result);
+    } catch {
+      setAnalysisResult(null);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
+
+  async function loadWorkflowRunsForSelection(
+    workflow: WorkflowSummary,
+  ): Promise<{ runs: RunSummary[]; jobs: RunJobSummary[] }> {
     if (!repository || !selectedBranch) {
       setWorkflowRuns([]);
       setSelectedRunId(null);
       setSelectedRunJobs([]);
-      return;
+      return { runs: [], jobs: [] };
     }
 
     setRunLoading(true);
     setAnalysisResult(null);
-    setAnalysisError(null);
-    setRecommendationResult(null);
-    setRecommendationError(null);
 
     try {
       const runs = await fetchWorkflowRuns(repository, workflow.fileName, selectedBranch, formState.token);
@@ -213,9 +218,11 @@ export function App() {
       setSelectedRunId(firstRun?.id ?? null);
 
       if (firstRun) {
-        await loadRunJobs(firstRun.id);
+        const jobs = await loadRunJobs(firstRun.id);
+        return { runs, jobs };
       } else {
         setSelectedRunJobs([]);
+        return { runs, jobs: [] };
       }
     } catch (error) {
       const message =
@@ -227,6 +234,7 @@ export function App() {
       setWorkflowRuns([]);
       setSelectedRunId(null);
       setSelectedRunJobs([]);
+      return { runs: [], jobs: [] };
     } finally {
       setRunLoading(false);
     }
@@ -250,7 +258,8 @@ export function App() {
     const graph = buildWorkflowGraph(preview.content, preview.workflowName);
     setWorkflowGraph(graph);
     setSelectedJobId(graph.jobs[0]?.id ?? '');
-    await loadWorkflowRunsForSelection(selected);
+    const { runs, jobs } = await loadWorkflowRunsForSelection(selected);
+    await runWorkflowSummary(preview, runs, jobs);
   }
 
   async function loadBranchWorkflows(
@@ -397,72 +406,17 @@ export function App() {
     setSelectedRunJobs([]);
     setRunLoading(true);
     setAnalysisResult(null);
-    setAnalysisError(null);
-    setRecommendationResult(null);
-    setRecommendationError(null);
 
-    void loadRunJobs(runId).finally(() => {
-      setRunLoading(false);
-    });
-  }
+    void loadRunJobs(runId)
+      .then((jobs) => {
+        if (!selectedPreview) {
+          return;
+        }
 
-  function handleAnalyzeWorkflow() {
-    if (!repository || !selectedPreview) {
-      return;
-    }
-
-    setAnalysisLoading(true);
-    setAnalysisError(null);
-
-    void analyzeWorkflow({
-      repository: {
-        owner: repository.owner,
-        repo: repository.repo,
-      },
-      branch: selectedBranch,
-      preview: selectedPreview,
-      runs: workflowRuns,
-      runJobs: selectedRunJobs,
-    })
-      .then((result) => {
-        setAnalysisResult(result);
-      })
-      .catch((error: unknown) => {
-        setAnalysisError(
-          error instanceof Error ? error.message : 'AI 분석 요청에 실패했습니다.',
-        );
+        return runWorkflowSummary(selectedPreview, workflowRuns, jobs);
       })
       .finally(() => {
-        setAnalysisLoading(false);
-      });
-  }
-
-  function handleRecommendChange() {
-    if (!repository || !selectedPreview || !recommendDetails.trim()) {
-      return;
-    }
-
-    setRecommendationLoading(true);
-    setRecommendationError(null);
-
-    void recommendWorkflowChange({
-      repository,
-      branch: selectedBranch,
-      preview: selectedPreview,
-      repoInsight,
-      template: recommendTemplate,
-      details: recommendDetails,
-    })
-      .then((result) => {
-        setRecommendationResult(result);
-      })
-      .catch((error: unknown) => {
-        setRecommendationError(
-          error instanceof Error ? error.message : '변경 위치 추천 요청에 실패했습니다.',
-        );
-      })
-      .finally(() => {
-        setRecommendationLoading(false);
+        setRunLoading(false);
       });
   }
 
@@ -475,7 +429,7 @@ export function App() {
       repository,
       selectedBranch,
       preview: selectedPreview,
-      workflowGraph: hydratedWorkflowGraph,
+      workflowGraph,
       repoInsight,
       branchComparison,
       runs: workflowRuns,
@@ -487,6 +441,22 @@ export function App() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${selectedPreview.fileName.replace(/\.(ya?ml)$/i, '')}-review.md`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  function handleExportWorkflowFile() {
+    if (!selectedPreview) {
+      return;
+    }
+
+    const blob = new Blob([selectedPreview.content], {
+      type: 'application/x-yaml;charset=utf-8',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = selectedPreview.fileName;
     link.click();
     window.URL.revokeObjectURL(url);
   }
@@ -519,12 +489,23 @@ export function App() {
           loading={repositoryLoading || workflowLoading}
           map={workflowMap}
           onSelect={handleSelectWorkflow}
-          onToggleWeakLinks={() => {
-            setShowWeakLinks((current) => !current);
-          }}
           selectedId={selectedWorkflowId}
-          showWeakLinks={showWeakLinks}
         />
+
+        {repository ? (
+          <ReviewReportPanel
+            analysisResult={analysisResult}
+            branchComparison={branchComparison}
+            onExportMarkdown={handleExportMarkdown}
+            preview={selectedPreview}
+            repoInsight={repoInsight}
+            repository={repository}
+            runs={workflowRuns}
+            selectedBranch={selectedBranch}
+            workflowCount={workflowItems.length}
+            workflowGraph={workflowGraph}
+          />
+        ) : null}
 
         {selectedWorkflowId ? (
           <>
@@ -554,24 +535,10 @@ export function App() {
                 </div>
 
                 <div className="detail-workspace-grid">
-                  {repository ? (
-                    <ReviewReportPanel
-                      analysisResult={analysisResult}
-                      branchComparison={branchComparison}
-                      onExportMarkdown={handleExportMarkdown}
-                      preview={selectedPreview}
-                      repoInsight={repoInsight}
-                      repository={repository}
-                      runs={workflowRuns}
-                      selectedBranch={selectedBranch}
-                      workflowGraph={hydratedWorkflowGraph}
-                    />
-                  ) : null}
                   <GraphCanvas
-                    graph={hydratedWorkflowGraph}
+                    graph={workflowGraph}
                     loading={workflowLoading || runLoading}
                     onSelectJob={setSelectedJobId}
-                    selectedRun={selectedRun}
                     selectedJobId={selectedJobId}
                   />
                   <RunHistoryPanel
@@ -581,27 +548,14 @@ export function App() {
                     selectedRunId={selectedRunId}
                     selectedRunJobs={selectedRunJobs}
                   />
-                  <AnalysisPanel
-                    disabled={!selectedPreview}
-                    errorMessage={analysisError}
-                    issues={analysisResult?.issues ?? []}
-                    loading={analysisLoading}
-                    onAnalyze={handleAnalyzeWorkflow}
-                    source={analysisResult?.source ?? null}
-                    summary={analysisResult?.summary ?? null}
-                  />
-                  <ChangeRequestPanel
-                    details={recommendDetails}
-                    errorMessage={recommendationError}
-                    loading={recommendationLoading}
-                    onDetailsChange={setRecommendDetails}
-                    onRecommend={handleRecommendChange}
-                    onTemplateChange={setRecommendTemplate}
-                    result={recommendationResult}
-                    template={recommendTemplate}
-                  />
                   <JobDetailPanel
+                    summary={
+                      analysisLoading
+                        ? '선택한 workflow를 분석해서 전체 흐름을 요약하는 중입니다.'
+                        : analysisResult?.summary ?? null
+                    }
                     loading={workflowLoading}
+                    onExport={handleExportWorkflowFile}
                     preview={selectedPreview}
                   />
                 </div>

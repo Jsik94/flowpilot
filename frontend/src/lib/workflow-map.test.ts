@@ -159,3 +159,52 @@ jobs:
     },
   ]);
 });
+
+test('buildWorkflowMap infers weak edges across pre-merge and post-merge workflows with shared branch target', () => {
+  const map = buildWorkflowMap([
+    {
+      fileName: 'build-pr.yml',
+      path: '.github/workflows/build-pr.yml',
+      sha: '1111111',
+      workflowName: 'Build Review',
+      lineCount: 6,
+      preview: [],
+      content: `
+name: Build Review
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+`,
+    },
+    {
+      fileName: 'build-main.yml',
+      path: '.github/workflows/build-main.yml',
+      sha: '2222222',
+      workflowName: 'Build Main',
+      lineCount: 6,
+      preview: [],
+      content: `
+name: Build Main
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+`,
+    },
+  ]);
+
+  assert.deepEqual(map.weakEdges, [
+    {
+      from: '.github/workflows/build-pr.yml',
+      to: '.github/workflows/build-main.yml',
+      kind: 'weak',
+    },
+  ]);
+});

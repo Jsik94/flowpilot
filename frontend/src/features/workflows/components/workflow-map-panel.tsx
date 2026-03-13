@@ -5,10 +5,8 @@ import type { GraphEdge, WorkflowMap, WorkflowMapNode } from '../../../types';
 type WorkflowMapPanelProps = {
   map: WorkflowMap | null;
   loading: boolean;
-  showWeakLinks: boolean;
   selectedId: string;
   onSelect: (workflowId: string) => void;
-  onToggleWeakLinks: () => void;
 };
 
 type ForceNode = WorkflowMapNode & {
@@ -23,10 +21,8 @@ type ForceLink = GraphEdge & {
 export function WorkflowMapPanel({
   map,
   loading,
-  showWeakLinks,
   selectedId,
   onSelect,
-  onToggleWeakLinks,
 }: WorkflowMapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<any>(undefined);
@@ -61,14 +57,14 @@ export function WorkflowMapPanel({
       map
         ? {
             nodes: map.nodes.map((node) => ({ ...node })) as ForceNode[],
-            links: (showWeakLinks ? map.edges : map.strongEdges).map<ForceLink>((edge) => ({
+            links: map.edges.map<ForceLink>((edge) => ({
               ...edge,
               source: edge.from,
               target: edge.to,
             })),
           }
         : { nodes: [], links: [] },
-    [map, showWeakLinks],
+    [map],
   );
 
   useEffect(() => {
@@ -107,23 +103,17 @@ export function WorkflowMapPanel({
         <div>
           <p className="eyebrow">Workflow Map</p>
           <h2>브랜치 전체 흐름</h2>
+          <p className="map-panel-subtitle">현재 워크플로우를 시각화한 예시입니다.</p>
         </div>
         <div className="map-panel-actions">
-          <button
-            className="button button-secondary map-toggle-button"
-            onClick={onToggleWeakLinks}
-            type="button"
-          >
-            {showWeakLinks ? 'Weak Link Off' : 'Weak Link On'}
-          </button>
           {map ? <span className="badge">{map.nodes.length} workflows</span> : null}
         </div>
       </div>
 
       <div className="map-legend-row">
-        <span className="legend-chip legend-pre-merge">머지 전: PR / review 계열</span>
-        <span className="legend-chip legend-post-merge">머지 후: push / pipeline / release 계열</span>
-        <span className="legend-chip legend-manual">수동/기타: manual / schedule</span>
+        <span className="legend-chip"><span className="legend-dot legend-pre-merge-dot" /> 머지 이전</span>
+        <span className="legend-chip"><span className="legend-dot legend-post-merge-dot" /> 머지 이후</span>
+        <span className="legend-chip"><span className="legend-dot legend-manual-dot" /> 수동/기타</span>
       </div>
 
       {loading ? <p className="empty-state">브랜치 기준으로 워크플로우를 스캔하는 중입니다.</p> : null}
@@ -232,16 +222,15 @@ function getPhaseColor(phaseLabel: string) {
     case 'PR':
       return '#8fb8ff';
     case 'Push':
-      return '#ffd881';
     case 'Pipeline':
-      return '#5bd1a5';
     case 'Release':
-      return '#ff9aa6';
+      return '#5bd1a5';
     case 'Manual':
     case 'Schedule':
+    case 'Other':
       return '#d6deef';
     default:
-      return '#b8d2ff';
+      return '#d6deef';
   }
 }
 
