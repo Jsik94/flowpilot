@@ -1,6 +1,7 @@
 import type {
   AnalysisResult,
   BranchComparison,
+  CiReviewReport,
   RepoInsight,
   RepositoryEntry,
   RepositoryRef,
@@ -76,8 +77,9 @@ export function buildReviewMarkdown(input: {
   branchComparison: BranchComparison | null;
   runs: RunSummary[];
   analysisResult: AnalysisResult | null;
+  ciReview: CiReviewReport | null;
 }) {
-  const { repository, selectedBranch, preview, workflowGraph, repoInsight, branchComparison, runs, analysisResult } = input;
+  const { repository, selectedBranch, preview, workflowGraph, repoInsight, branchComparison, runs, analysisResult, ciReview } = input;
 
   return [
     `# FlowPilot Review Report`,
@@ -87,7 +89,21 @@ export function buildReviewMarkdown(input: {
     `- Workflow: ${preview.workflowName} (${preview.fileName})`,
     '',
     '## Overview',
-    analysisResult?.summary ?? '분석 결과가 아직 생성되지 않았습니다.',
+    ciReview?.headline ?? analysisResult?.summary ?? '분석 결과가 아직 생성되지 않았습니다.',
+    '',
+    ciReview?.summary ?? '',
+    '',
+    '## CI Scorecard',
+    ciReview
+      ? ciReview.categoryScores
+          .map((category) => `- ${category.label}: ${category.score}/100 - ${category.summary}`)
+          .join('\n')
+      : '- scorecard unavailable',
+    '',
+    '## Quick Wins',
+    ciReview?.quickWins.length
+      ? ciReview.quickWins.map((item) => `- ${item}`).join('\n')
+      : '- quick wins unavailable',
     '',
     '## Repository Analysis',
     repoInsight?.summary ?? '레포 분석 정보가 아직 없습니다.',
@@ -114,8 +130,12 @@ export function buildReviewMarkdown(input: {
       : '- recent runs unavailable',
     '',
     '## Review Findings',
-    analysisResult && analysisResult.issues.length > 0
-      ? analysisResult.issues.map((issue) => `- [${issue.severity}] ${issue.title} (${issue.target})\n  ${issue.summary}`).join('\n')
+    ciReview && ciReview.findings.length > 0
+      ? ciReview.findings
+          .map((issue) => `- [${issue.severity}] ${issue.summary}${issue.workflowName ? ` (${issue.workflowName})` : ''}\n  ${issue.recommendation}`)
+          .join('\n')
+      : analysisResult && analysisResult.issues.length > 0
+        ? analysisResult.issues.map((issue) => `- [${issue.severity}] ${issue.title} (${issue.target})\n  ${issue.summary}`).join('\n')
       : '- 아직 분석 이슈가 없습니다.',
   ].join('\n');
 }

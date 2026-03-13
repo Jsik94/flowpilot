@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RepositoryForm } from '../features/auth/components/repository-form';
 import { GraphCanvas } from '../features/graph/components/graph-canvas';
 import { JobDetailPanel } from '../features/jobs/components/job-detail-panel';
@@ -6,6 +6,7 @@ import { ReviewReportPanel } from '../features/review/components/review-report-p
 import { RunHistoryPanel } from '../features/runs/components/run-history-panel';
 import { WorkflowMapPanel } from '../features/workflows/components/workflow-map-panel';
 import { analyzeWorkflow } from '../lib/analyze';
+import { buildCiReviewReport, buildWorkflowNarrative } from '../lib/ci-review';
 import {
   fetchRunJobs,
   fetchBranches,
@@ -73,6 +74,33 @@ export function App() {
     total: number;
   } | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const allPreviews = useMemo(() => Object.values(workflowPreviews), [workflowPreviews]);
+  const reviewReport = useMemo(
+    () =>
+      repository
+        ? buildCiReviewReport({
+            selectedBranch,
+            previews: allPreviews,
+            workflowMap,
+            repoInsight,
+            branchComparison,
+            runs: workflowRuns,
+            analysisResult,
+          })
+        : null,
+    [allPreviews, analysisResult, branchComparison, repoInsight, repository, selectedBranch, workflowMap, workflowRuns],
+  );
+  const workflowSummary = useMemo(
+    () => (selectedPreview ? buildWorkflowNarrative(selectedPreview, workflowGraph, workflowRuns) : null),
+    [selectedPreview, workflowGraph, workflowRuns],
+  );
+  const drawerSummary = useMemo(() => {
+    if (analysisResult?.summary && workflowSummary) {
+      return `${analysisResult.summary} ${workflowSummary}`;
+    }
+
+    return analysisResult?.summary ?? workflowSummary;
+  }, [analysisResult?.summary, workflowSummary]);
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -434,6 +462,7 @@ export function App() {
       branchComparison,
       runs: workflowRuns,
       analysisResult,
+      ciReview: reviewReport,
     });
 
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
@@ -494,16 +523,11 @@ export function App() {
 
         {repository ? (
           <ReviewReportPanel
-            analysisResult={analysisResult}
-            branchComparison={branchComparison}
             onExportMarkdown={handleExportMarkdown}
             preview={selectedPreview}
-            repoInsight={repoInsight}
+            report={reviewReport}
             repository={repository}
-            runs={workflowRuns}
             selectedBranch={selectedBranch}
-            workflowCount={workflowItems.length}
-            workflowGraph={workflowGraph}
           />
         ) : null}
 
@@ -535,6 +559,19 @@ export function App() {
                 </div>
 
                 <div className="detail-workspace-grid">
+                  <section className="panel detail-summary-panel">
+                    <div className="panel-header">
+                      <div>
+                        <p className="eyebrow">Workflow Summary</p>
+                        <h2>이 workflow는 무엇을 하는가</h2>
+                      </div>
+                    </div>
+                    <p className="panel-note">
+                      {analysisLoading
+                        ? '선택한 workflow를 분석해서 간단한 설명을 정리하는 중입니다.'
+                        : drawerSummary ?? '현재 workflow 구조를 요약할 정보가 아직 부족합니다.'}
+                    </p>
+                  </section>
                   <GraphCanvas
                     graph={workflowGraph}
                     loading={workflowLoading || runLoading}
@@ -549,11 +586,6 @@ export function App() {
                     selectedRunJobs={selectedRunJobs}
                   />
                   <JobDetailPanel
-                    summary={
-                      analysisLoading
-                        ? '선택한 workflow를 분석해서 전체 흐름을 요약하는 중입니다.'
-                        : analysisResult?.summary ?? null
-                    }
                     loading={workflowLoading}
                     onExport={handleExportWorkflowFile}
                     preview={selectedPreview}

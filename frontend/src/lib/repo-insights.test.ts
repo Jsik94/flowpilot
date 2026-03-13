@@ -81,6 +81,7 @@ test('buildReviewMarkdown includes key report sections', () => {
     },
     runs: [],
     analysisResult: null,
+    ciReview: null,
   });
 
   assert.match(markdown, /# FlowPilot Review Report/);

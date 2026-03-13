@@ -1,28 +1,18 @@
-import type { AnalysisResult, BranchComparison, RepoInsight, RepositoryRef, RunSummary, WorkflowGraph, WorkflowPreview } from '../../../types';
+import type { CiReviewReport, RepositoryRef, WorkflowPreview } from '../../../types';
 
 type ReviewReportPanelProps = {
   repository: RepositoryRef;
   selectedBranch: string;
-  workflowCount: number;
   preview: WorkflowPreview | null;
-  workflowGraph: WorkflowGraph | null;
-  repoInsight: RepoInsight | null;
-  branchComparison: BranchComparison | null;
-  runs: RunSummary[];
-  analysisResult: AnalysisResult | null;
+  report: CiReviewReport | null;
   onExportMarkdown: () => void;
 };
 
 export function ReviewReportPanel({
   repository,
   selectedBranch,
-  workflowCount,
   preview,
-  workflowGraph,
-  repoInsight,
-  branchComparison,
-  runs,
-  analysisResult,
+  report,
   onExportMarkdown,
 }: ReviewReportPanelProps) {
   return (
@@ -31,10 +21,13 @@ export function ReviewReportPanel({
         <div>
           <p className="eyebrow">Review Report</p>
           <h2>브랜치 전체 CI 리뷰</h2>
+          <p className="muted">
+            {repository.fullName} · {selectedBranch}
+          </p>
         </div>
         <button
           className="button button-secondary"
-          disabled={!preview}
+          disabled={!preview || !report}
           onClick={onExportMarkdown}
           type="button"
         >
@@ -42,61 +35,130 @@ export function ReviewReportPanel({
         </button>
       </div>
 
-      <div className="report-grid">
-        <article className="report-card">
-          <span className="detail-label">Overview</span>
-          <strong>{repository.fullName}</strong>
-          <p>브랜치 `{selectedBranch}` 기준 workflow {workflowCount}개와 레포 신호를 함께 검토합니다.</p>
-          <p>{analysisResult?.summary ?? '선택된 workflow의 AI 요약은 드로어 안에서 확인할 수 있습니다.'}</p>
-        </article>
+      {!report ? (
+        <p className="empty-state report-empty">레포를 연결하면 브랜치 단위 CI 리뷰가 생성됩니다.</p>
+      ) : (
+        <>
+          <section className="report-glance-card">
+            <div className="report-glance-header">
+              <div>
+                <span className="report-kicker">At a Glance</span>
+                <h3>{report.headline}</h3>
+              </div>
+              <div className="report-score-badge">
+                <strong>{report.score}</strong>
+                <span>/ 100</span>
+              </div>
+            </div>
+            <p className="report-glance-summary">{report.summary}</p>
 
-        <article className="report-card">
-          <span className="detail-label">Repository Analysis</span>
-          <strong>레포 신호</strong>
-          <p>{repoInsight?.summary ?? '레포 분석 정보를 수집하는 중입니다.'}</p>
-          <p>Confidence: {repoInsight?.confidence ?? 'unknown'}</p>
-        </article>
-
-        <article className="report-card">
-          <span className="detail-label">Branch Comparison</span>
-          <strong>{branchComparison?.baseBranch ?? repository.defaultBranch} 대비 차이</strong>
-          <p>{branchComparison?.summary ?? '브랜치 비교 정보를 계산하는 중입니다.'}</p>
-          <p>추가 {branchComparison?.addedWorkflows.length ?? 0} / 제거 {branchComparison?.removedWorkflows.length ?? 0}</p>
-        </article>
-
-        <article className="report-card">
-          <span className="detail-label">CI Perspective</span>
-          <strong>현재 CI 흐름 평가</strong>
-          <p>Jobs {workflowGraph?.jobs.length ?? 0}개, 최근 runs {runs.length}개를 기준으로 현재 CI 흐름을 요약합니다.</p>
-          <p>{workflowGraph?.jobs.map((job) => job.title).slice(0, 4).join(', ') || '아직 선택된 workflow가 없습니다.'}</p>
-        </article>
-      </div>
-
-      <div className="report-section">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">CI Review</p>
-            <h2>평가와 개선 포인트</h2>
-          </div>
-        </div>
-
-        {analysisResult?.issues.length ? (
-          <div className="issue-list">
-            {analysisResult.issues.slice(0, 3).map((issue) => (
-              <article key={issue.id} className={`issue-card issue-${issue.severity}`}>
-                <div className="issue-top">
-                  <span className={`pill pill-${issue.severity}`}>{issue.severity}</span>
-                  <strong>{issue.title}</strong>
-                </div>
-                <p className="issue-target">{issue.target}</p>
-                <p>{issue.summary}</p>
+            <div className="glance-columns">
+              <article className="glance-column">
+                <strong>잘 작동하는 점</strong>
+                <ul>
+                  {report.strengths.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
               </article>
-            ))}
-          </div>
-        ) : (
-          <p className="empty-state">선택한 workflow를 기준으로 CI 관점의 평가와 개선 포인트를 정리합니다.</p>
-        )}
-      </div>
+
+              <article className="glance-column is-caution">
+                <strong>우선 살펴볼 점</strong>
+                <ul>
+                  {report.watchouts.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+
+              <article className="glance-column is-action">
+                <strong>빠른 개선 액션</strong>
+                <ul>
+                  {report.quickWins.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+          </section>
+
+          <section className="report-stats-grid">
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.workflowCount}</span>
+              <span className="report-stat-label">Workflows</span>
+            </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.preMergeCount}</span>
+              <span className="report-stat-label">Pre-merge</span>
+            </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.postMergeCount}</span>
+              <span className="report-stat-label">Post-merge</span>
+            </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.manualCount}</span>
+              <span className="report-stat-label">Manual / Scheduled</span>
+            </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.jobCount}</span>
+              <span className="report-stat-label">Jobs</span>
+            </article>
+            <article className="report-stat-card">
+              <span className="report-stat-value">{report.stats.runCount}</span>
+              <span className="report-stat-label">Observed Runs</span>
+            </article>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">CI Evaluation</p>
+                <h2>평가 관점별 점수</h2>
+              </div>
+            </div>
+
+            <div className="report-category-grid">
+              {report.categoryScores.map((category) => (
+                <article key={category.key} className="report-category-card">
+                  <div className="report-category-top">
+                    <strong>{category.label}</strong>
+                    <span className="badge">{category.score}점</span>
+                  </div>
+                  <div className="report-progress-track">
+                    <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
+                  </div>
+                  <p>{category.summary}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Deep Review</p>
+                <h2>세부 발견 사항</h2>
+              </div>
+            </div>
+
+            <div className="report-findings-list">
+              {report.findings.map((finding) => (
+                <article key={finding.id} className={`report-finding-card is-${finding.severity}`}>
+                  <div className="report-finding-top">
+                    <span className={`pill pill-${finding.severity}`}>{finding.severity}</span>
+                    <strong>{finding.summary}</strong>
+                  </div>
+                  <p className="issue-target">
+                    {finding.workflowName ? `${finding.workflowName} · ` : ''}
+                    {finding.category}
+                  </p>
+                  <p>{finding.recommendation}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </section>
   );
 }

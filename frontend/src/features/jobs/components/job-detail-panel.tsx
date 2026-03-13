@@ -3,21 +3,19 @@ import type { WorkflowPreview } from '../../../types';
 type JobDetailPanelProps = {
   preview: WorkflowPreview | null;
   loading: boolean;
-  summary: string | null;
   onExport: () => void;
 };
 
 export function JobDetailPanel({
   preview,
   loading,
-  summary,
   onExport,
 }: JobDetailPanelProps) {
   return (
     <section className="panel detail-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Workflow Preview</p>
+          <p className="eyebrow">Workflow Source</p>
           <h2>{preview?.workflowName ?? '선택된 워크플로우 없음'}</h2>
         </div>
         <div className="map-panel-actions">
@@ -41,12 +39,6 @@ export function JobDetailPanel({
 
       {preview ? (
         <>
-          <div className="report-card">
-            <span className="detail-label">AI Summary</span>
-            <strong>이 workflow는 어떤 흐름인가</strong>
-            <p>{summary ?? '요약을 생성하는 중이거나 아직 사용할 수 없습니다.'}</p>
-          </div>
-
           <div className="detail-grid">
             <div>
               <span className="detail-label">Path</span>

@@ -154,6 +154,39 @@ export type AnalysisResult = {
   issues: AnalysisIssue[];
 };
 
+export type CiReviewFinding = {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  category: 'security' | 'reliability' | 'performance' | 'maintainability' | 'coverage';
+  workflowName?: string;
+  summary: string;
+  recommendation: string;
+};
+
+export type CiReviewReport = {
+  headline: string;
+  summary: string;
+  score: number;
+  stats: {
+    workflowCount: number;
+    preMergeCount: number;
+    postMergeCount: number;
+    manualCount: number;
+    jobCount: number;
+    runCount: number;
+  };
+  strengths: string[];
+  watchouts: string[];
+  quickWins: string[];
+  categoryScores: Array<{
+    key: 'security' | 'reliability' | 'performance' | 'maintainability' | 'coverage';
+    label: string;
+    score: number;
+    summary: string;
+  }>;
+  findings: CiReviewFinding[];
+};
+
 export type RepoInsight = {
   summary: string;
   frameworks: string[];
