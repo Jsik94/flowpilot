@@ -160,6 +160,4 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
   assert.ok(report.failureInsights.patterns.length > 0);
   assert.ok(report.reviewLenses.length > 0);
   assert.ok(report.workflowDeepDives.length > 0);
-  assert.equal(report.recentActivity.totalRuns, 2);
-  assert.ok(report.recentActivity.topWorkflows.length > 0);
 });

@@ -800,8 +800,7 @@ textarea {
 
 .glance-columns,
 .report-stats-grid,
-.report-activity-summary-grid,
-.report-activity-grid,
+.report-guide-grid,
 .report-category-grid,
 .report-stage-grid,
 .report-architecture-grid,
@@ -856,12 +855,7 @@ textarea {
   margin-top: 24px;
 }
 
-.report-activity-summary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 24px;
-}
-
-.report-activity-grid {
+.report-guide-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 24px;
 }
@@ -1063,7 +1057,7 @@ textarea {
   cursor: pointer;
 }
 
-.report-activity-card {
+.report-guide-card {
   border-color: rgba(143, 184, 255, 0.16);
 }
 
@@ -1107,14 +1101,42 @@ textarea {
   gap: 14px;
 }
 
+.report-category-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.report-category-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .category-security {
   border-color: rgba(255, 111, 125, 0.26);
   background: linear-gradient(180deg, rgba(255, 111, 125, 0.08), var(--item-bg));
 }
 
+.report-category-chip.category-security {
+  background: rgba(255, 111, 125, 0.18);
+  color: #ffb6bf;
+}
+
 .category-reliability {
   border-color: rgba(143, 184, 255, 0.24);
   background: linear-gradient(180deg, rgba(143, 184, 255, 0.08), var(--item-bg));
+}
+
+.report-category-chip.category-reliability {
+  background: rgba(143, 184, 255, 0.18);
+  color: #c4d7ff;
 }
 
 .category-performance,
@@ -1123,15 +1145,32 @@ textarea {
   background: linear-gradient(180deg, rgba(247, 191, 84, 0.08), var(--item-bg));
 }
 
+.report-category-chip.category-performance,
+.report-category-chip.category-latency {
+  background: rgba(247, 191, 84, 0.18);
+  color: #ffe09f;
+}
+
 .category-maintainability,
 .category-duplication {
   border-color: rgba(182, 140, 255, 0.24);
   background: linear-gradient(180deg, rgba(182, 140, 255, 0.08), var(--item-bg));
 }
 
+.report-category-chip.category-maintainability,
+.report-category-chip.category-duplication {
+  background: rgba(182, 140, 255, 0.18);
+  color: #dbc4ff;
+}
+
 .category-coverage {
   border-color: rgba(91, 209, 165, 0.24);
   background: linear-gradient(180deg, rgba(91, 209, 165, 0.08), var(--item-bg));
+}
+
+.report-category-chip.category-coverage {
+  background: rgba(91, 209, 165, 0.18);
+  color: #aaf0d3;
 }
 
 .report-inline-link {
@@ -1439,8 +1478,7 @@ textarea {
 
   .glance-columns,
   .report-stats-grid,
-  .report-activity-summary-grid,
-  .report-activity-grid,
+  .report-guide-grid,
   .report-priority-grid,
   .report-category-grid,
   .report-stage-grid,

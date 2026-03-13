@@ -162,7 +162,6 @@ export function buildCiReviewReport({
   const reviewLenses = buildReviewLenses(dedupedFindings, categoryScores);
   const workflowDeepDives = buildWorkflowDeepDives(assessments, diagnostics, dedupedFindings);
   const priorityActions = buildPriorityActions(dedupedFindings, optimizationInsights);
-  const recentActivity = buildRecentActivitySummary(diagnostics);
 
   return {
     headline: buildHeadline(score),
@@ -206,7 +205,6 @@ export function buildCiReviewReport({
     roleAnalysis,
     optimizationInsights,
     priorityActions,
-    recentActivity,
     failureInsights,
     reviewLenses,
     workflowCards: assessments
@@ -967,64 +965,6 @@ function buildPriorityActions(
       expectedImpact: 'reusable workflow나 공통 action으로 정리하면 유지보수 비용이 줄어듭니다.',
     })),
   ].slice(0, 5);
-}
-
-function buildRecentActivitySummary(
-  diagnostics: Record<string, WorkflowDiagnostic>,
-): CiReviewReport['recentActivity'] {
-  const now = Date.now();
-  const windowMs = 3 * 24 * 60 * 60 * 1000;
-  const recentWorkflowStats = Object.values(diagnostics)
-    .map((diagnostic) => {
-      const recentRuns = diagnostic.runs.filter((run) => {
-        const startedAt = new Date(run.startedAt).getTime();
-        return !Number.isNaN(startedAt) && now - startedAt <= windowMs;
-      });
-
-      const successCount = recentRuns.filter((run) => run.status === 'success').length;
-      const failureCount = recentRuns.filter((run) => run.status === 'failure').length;
-      const runningCount = recentRuns.filter((run) => run.status === 'running').length;
-      const failureRate = recentRuns.length > 0 ? Math.round((failureCount / recentRuns.length) * 100) : null;
-
-      return {
-        workflowName: diagnostic.workflowName,
-        fileName: diagnostic.fileName,
-        runCount: recentRuns.length,
-        successCount,
-        failureCount,
-        runningCount,
-        failureRate,
-      };
-    })
-    .filter((item) => item.runCount > 0)
-    .sort((left, right) => {
-      if (right.runCount !== left.runCount) {
-        return right.runCount - left.runCount;
-      }
-
-      return right.failureCount - left.failureCount;
-    });
-
-  const totals = recentWorkflowStats.reduce(
-    (acc, item) => ({
-      totalRuns: acc.totalRuns + item.runCount,
-      successRuns: acc.successRuns + item.successCount,
-      failureRuns: acc.failureRuns + item.failureCount,
-      runningRuns: acc.runningRuns + item.runningCount,
-    }),
-    { totalRuns: 0, successRuns: 0, failureRuns: 0, runningRuns: 0 },
-  );
-
-  return {
-    windowLabel: '최근 3일',
-    totalRuns: totals.totalRuns,
-    successRuns: totals.successRuns,
-    failureRuns: totals.failureRuns,
-    runningRuns: totals.runningRuns,
-    successRate:
-      totals.totalRuns > 0 ? Math.round((totals.successRuns / totals.totalRuns) * 100) : null,
-    topWorkflows: recentWorkflowStats.slice(0, 6),
-  };
 }
 
 function mapExpectedImpact(category: CiReviewFinding['category']) {

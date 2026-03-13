@@ -118,59 +118,32 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Recent Activity</p>
-                <h2>{report.recentActivity.windowLabel} 워크플로우 사용 통계</h2>
+                <p className="eyebrow">Reading Guide</p>
+                <h2>이 리포트는 이렇게 읽으면 됩니다</h2>
               </div>
             </div>
 
-            <div className="report-activity-summary-grid">
-              <article className="report-stat-card stat-runs">
-                <span className="report-stat-value">{report.recentActivity.totalRuns}</span>
-                <span className="report-stat-label">Total Runs</span>
+            <div className="report-guide-grid">
+              <article className="report-card report-guide-card">
+                <span className="detail-label">1. Priority Actions</span>
+                <strong>가장 먼저 손대야 할 항목부터 봅니다</strong>
+                <p>바로 위험을 줄이거나 리드타임을 단축할 수 있는 항목만 앞에 모아뒀습니다.</p>
               </article>
-              <article className="report-stat-card stat-postmerge">
-                <span className="report-stat-value">{report.recentActivity.successRuns}</span>
-                <span className="report-stat-label">Succeeded</span>
+              <article className="report-card report-guide-card">
+                <span className="detail-label">2. Category Lenses</span>
+                <strong>보안 / 안정성 / 최적화 관점을 구분해서 읽습니다</strong>
+                <p>각 관점은 색으로 구분되고, 같은 색 카드끼리는 비슷한 성격의 문제를 뜻합니다.</p>
               </article>
-              <article className="report-stat-card stat-failures">
-                <span className="report-stat-value">{report.recentActivity.failureRuns}</span>
-                <span className="report-stat-label">Failed</span>
+              <article className="report-card report-guide-card">
+                <span className="detail-label">3. Deep Dive</span>
+                <strong>특정 workflow를 열기 전에 역할과 흐름을 파악합니다</strong>
+                <p>상세 분석 카드에서 해당 workflow가 무엇을 하고 어디가 병목인지 먼저 읽을 수 있습니다.</p>
               </article>
-              <article className="report-stat-card stat-premerge">
-                <span className="report-stat-value">
-                  {report.recentActivity.successRate != null ? `${report.recentActivity.successRate}%` : '-'}
-                </span>
-                <span className="report-stat-label">Success Rate</span>
+              <article className="report-card report-guide-card">
+                <span className="detail-label">4. Findings</span>
+                <strong>마지막에 실제 YAML 위치를 따라갑니다</strong>
+                <p>세부 발견 사항을 누르면 소스 위치로 이어지므로, 먼저 맥락을 이해한 뒤 수정하면 됩니다.</p>
               </article>
-            </div>
-
-            <div className="report-activity-grid">
-              {report.recentActivity.topWorkflows.length > 0 ? (
-                report.recentActivity.topWorkflows.map((workflow) => (
-                  <article key={workflow.fileName} className="report-card report-activity-card">
-                    <div className="report-workflow-top">
-                      <div>
-                        <strong>{workflow.workflowName}</strong>
-                        <p className="issue-target">{workflow.fileName}</p>
-                      </div>
-                      <span className="badge">{workflow.runCount} runs</span>
-                    </div>
-                    <div className="report-workflow-meta">
-                      <span>success {workflow.successCount}</span>
-                      <span>failure {workflow.failureCount}</span>
-                      <span>running {workflow.runningCount}</span>
-                    </div>
-                    <p className="report-workflow-inline-meta">
-                      실패율 {workflow.failureRate != null ? `${workflow.failureRate}%` : '-'}
-                    </p>
-                  </article>
-                ))
-              ) : (
-                <article className="report-card">
-                  <strong>최근 3일 실행 이력 없음</strong>
-                  <p>선택 브랜치 기준으로 최근 3일 내 관찰된 workflow run이 없습니다.</p>
-                </article>
-              )}
             </div>
           </section>
 
@@ -418,6 +391,9 @@ export function ReviewReportPanel({
                     <strong>{category.label}</strong>
                     <span className="badge">{category.score}점</span>
                   </div>
+                  <div className="report-category-chip-row">
+                    <span className={`report-category-chip category-${category.key}`}>{category.label}</span>
+                  </div>
                   <div className="report-progress-track">
                     <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
                   </div>
@@ -441,6 +417,9 @@ export function ReviewReportPanel({
                   <div className="report-category-top">
                     <strong>{lens.label}</strong>
                     <span className="badge">{lens.findings.length} findings</span>
+                  </div>
+                  <div className="report-category-chip-row">
+                    <span className={`report-category-chip category-${lens.key}`}>{lens.label}</span>
                   </div>
                   <p>{lens.summary}</p>
                   <ul className="report-bullet-list report-compact-list">
@@ -598,6 +577,9 @@ export function ReviewReportPanel({
                     {finding.workflowName ? `${finding.workflowName} · ` : ''}
                     {finding.category}
                   </p>
+                  <div className="report-category-chip-row">
+                    <span className={`report-category-chip category-${finding.category}`}>{finding.category}</span>
+                  </div>
                   {finding.filePath ? (
                     <p className="report-finding-location">
                       {finding.filePath}
