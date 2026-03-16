@@ -1228,10 +1228,12 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-top: 24px;
+  align-items: start;
 }
 
 .report-visual-card {
   display: grid;
+  align-content: start;
   gap: 16px;
   padding: 22px;
   border-radius: 20px;
@@ -1319,6 +1321,36 @@ textarea {
 
 .report-risk-node.phase-manual {
   fill: rgba(214, 222, 239, 0.84);
+}
+
+.report-risk-summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.report-risk-summary-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--item-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-risk-summary-item:hover {
+  border-color: var(--active-border);
+}
+
+.report-risk-summary-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .report-table-shell {

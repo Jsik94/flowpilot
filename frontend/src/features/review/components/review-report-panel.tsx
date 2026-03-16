@@ -142,7 +142,7 @@ export function ReviewReportPanel({
                 <div className="report-phase-legend">
                   {buildPhaseSegments(report).map((segment) => (
                     <span key={segment.label} className="report-phase-legend-item">
-                      <span className={`legend-dot legend-${segment.tone}-dot`} />
+                      <span className={`legend-dot ${mapPhaseLegendClass(segment.tone)}`} />
                       {segment.label} {segment.count}
                     </span>
                   ))}
@@ -186,18 +186,37 @@ export function ReviewReportPanel({
                   <text x="464" y="264" className="report-risk-axis-label">jobs</text>
                   {buildRiskMatrixNodes(report).map((node) => (
                     <g key={node.filePath}>
+                      <title>{`${node.fullLabel} · jobs ${node.jobCount} · risk ${node.riskCount} · ${node.phaseLabel}`}</title>
                       <circle
                         cx={node.x}
                         cy={node.y}
                         r={node.radius}
                         className={`report-risk-node phase-${node.tone}`}
                       />
-                      <text x={node.x} y={node.y + node.radius + 14} className="report-risk-node-label">
-                        {node.label}
-                      </text>
                     </g>
                   ))}
                 </svg>
+                <div className="report-risk-summary-list">
+                  {buildRiskSummaryRows(report).map((row) => (
+                    <button
+                      key={row.filePath}
+                      className="report-risk-summary-item"
+                      onClick={() => onSelectWorkflow(row.fileName)}
+                      type="button"
+                    >
+                      <div>
+                        <strong>{row.workflowName}</strong>
+                        <p className="report-table-subtext">{row.fileName}</p>
+                      </div>
+                      <span className={`report-phase-chip phase-${mapPhaseTone(row.phaseLabel)}`}>
+                        {row.phaseLabel}
+                      </span>
+                      <span className="report-risk-summary-meta">
+                        jobs {row.jobCount} · risk {row.riskCount}
+                      </span>
+                    </button>
+                  ))}
+                </div>
                 <p className="muted">
                   오른쪽일수록 job 수가 많고, 위로 갈수록 위험도 경고가 많은 workflow입니다.
                 </p>
@@ -771,19 +790,19 @@ function buildPhaseSegments(report: CiReviewReport) {
       label: '머지 이전',
       count: report.stats.preMergeCount,
       width: (report.stats.preMergeCount / total) * 100,
-      tone: 'pre',
+      tone: 'pre' as const,
     },
     {
       label: '머지 이후',
       count: report.stats.postMergeCount,
       width: (report.stats.postMergeCount / total) * 100,
-      tone: 'post',
+      tone: 'post' as const,
     },
     {
       label: '수동/기타',
       count: report.stats.manualCount,
       width: (report.stats.manualCount / total) * 100,
-      tone: 'manual',
+      tone: 'manual' as const,
     },
   ].filter((segment) => segment.count > 0);
 }
@@ -799,9 +818,36 @@ function buildRiskMatrixNodes(report: CiReviewReport) {
     radius: 8 + Math.min(10, row.roles.length * 2),
     tone: mapPhaseTone(row.phaseLabel),
     label: truncateWorkflowLabel(row.workflowName),
+    fullLabel: row.workflowName,
+    jobCount: row.jobCount,
+    riskCount: row.riskCount,
+    phaseLabel: row.phaseLabel,
   }));
 }
 
 function truncateWorkflowLabel(label: string) {
   return label.length > 18 ? `${label.slice(0, 18)}…` : label;
+}
+
+function buildRiskSummaryRows(report: CiReviewReport) {
+  return [...report.inventoryRows]
+    .sort((left, right) => {
+      if (right.riskCount !== left.riskCount) {
+        return right.riskCount - left.riskCount;
+      }
+
+      return right.jobCount - left.jobCount;
+    })
+    .slice(0, 5);
+}
+
+function mapPhaseLegendClass(tone: 'pre' | 'post' | 'manual') {
+  switch (tone) {
+    case 'pre':
+      return 'legend-pre-merge-dot';
+    case 'post':
+      return 'legend-post-merge-dot';
+    default:
+      return 'legend-manual-dot';
+  }
 }
