@@ -1,14 +1,14 @@
 # FlowPilot
 
-FlowPilot는 GitHub Actions 워크플로우를 브랜치 기준으로 시각화하고, CI 리뷰 리포트로 분석하는 애플리케이션입니다.
+FlowPilot는 GitHub Actions 워크플로우를 브랜치 기준으로 시각화하고, CI 관점의 리뷰 리포트로 분석하는 애플리케이션입니다.
 
-레포를 연결하면 다음 흐름으로 볼 수 있습니다.
+레포를 연결하면 아래 흐름으로 탐색할 수 있습니다.
 
-- workflow map
+- 브랜치별 workflow map
 - 선택한 workflow의 Job Graph
 - 최근 run history
 - workflow source
-- CI 관점 리뷰 리포트
+- CI 리뷰 리포트
 
 ## Features
 
@@ -38,20 +38,101 @@ flowpilot/
 └── README.md
 ```
 
-## Getting Started
-
-### Requirements
+## Requirements
 
 - Node.js 20+
 - pnpm 10+
 
-### Install
+## Installation
 
 ```bash
 pnpm install
 ```
 
-### Local Development
+## Environment Variables
+
+FlowPilot는 프론트와 백엔드가 분리되어 있어, 환경변수도 파일 위치가 다릅니다.
+
+### 1. Backend
+
+파일 위치:
+
+- `backend/.env`
+
+예시 파일:
+
+- `backend/.env.example`
+
+생성:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+기본 예시:
+
+```env
+PORT=3001
+FRONTEND_URL=http://localhost:5173
+GEMINI_API_KEY=
+```
+
+설명:
+
+- `PORT`
+  backend 포트입니다.
+- `FRONTEND_URL`
+  backend CORS 허용 origin 입니다.
+- `GEMINI_API_KEY`
+  Gemini 분석을 사용할 때만 넣습니다. 비워 두면 heuristic fallback만 사용합니다.
+
+### 2. Frontend
+
+파일 위치:
+
+- `frontend/.env`
+
+예시 파일:
+
+- `frontend/.env.example`
+
+생성:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+기본 예시:
+
+```env
+VITE_API_URL=http://localhost:3001
+```
+
+설명:
+
+- `VITE_API_URL`
+  frontend가 호출할 backend 주소입니다.
+- 로컬 개발에서는 보통 `http://localhost:3001`
+- Docker/nginx reverse proxy 환경에서는 비워 두거나 `/api` 기반 same-origin 구성을 사용합니다.
+
+### 3. Docker 실행 시
+
+`docker-compose.yml`은 `GEMINI_API_KEY`를 현재 쉘 환경에서 읽습니다.
+
+즉 Docker 기준으로는 `backend/.env`를 직접 읽는 방식이 아니라, 실행 전에 쉘에 export 하거나 `.env` 파일을 루트 기준으로 두는 방식이 필요할 수 있습니다.
+
+가장 단순한 방법:
+
+```bash
+export GEMINI_API_KEY=your_key
+docker compose up -d --build
+```
+
+현재 compose에서 사용하는 값:
+
+- `GEMINI_API_KEY`
+
+## Local Development
 
 Start:
 
@@ -65,12 +146,12 @@ Stop:
 pnpm dev:stop
 ```
 
-URLs:
+기본 주소:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3001`
 
-Logs:
+로그:
 
 - `./.flowpilot/logs/frontend.log`
 - `./.flowpilot/logs/backend.log`
@@ -89,26 +170,22 @@ Stop:
 pnpm docker:stop
 ```
 
-URLs:
+직접 실행:
+
+```bash
+docker compose up -d --build
+docker compose down
+```
+
+기본 주소:
 
 - Frontend: `http://localhost:8080`
 - Backend health: `http://localhost:3001/api/health`
 
-Notes:
+동작 방식:
 
 - frontend는 nginx로 서빙됩니다.
-- `/api` 요청은 backend 컨테이너로 프록시됩니다.
-- `GEMINI_API_KEY`가 있으면 backend 분석 기능이 활성화됩니다.
-
-## Environment Variables
-
-| Variable | Scope | Default | Description |
-| --- | --- | --- | --- |
-| `PORT` | backend | `3001` | backend listen port |
-| `FRONTEND_URL` | backend | `http://localhost:5173` | backend CORS origin |
-| `GEMINI_API_KEY` | backend | empty | Gemini API key |
-| `GEMINI_MODEL` | backend | `gemini-2.5-flash` | Gemini model |
-| `VITE_API_URL` | frontend | empty | API base URL, empty면 same-origin `/api` |
+- 브라우저의 `/api` 요청은 backend 컨테이너로 reverse proxy 됩니다.
 
 ## Security Notes
 
@@ -120,6 +197,18 @@ Notes:
   - `Contents: Read-only`
   - `Actions: Read-only`
 
+## Available Scripts
+
+```bash
+pnpm dev:start
+pnpm dev:stop
+pnpm docker:start
+pnpm docker:stop
+pnpm lint
+pnpm build
+pnpm test
+```
+
 ## Verification Status
 
 현재 기준 확인된 항목:
@@ -130,7 +219,7 @@ Notes:
 
 주의:
 
-- 현재 작업 환경에는 `docker` CLI가 없어 `docker compose up` 실기동 검증은 별도로 못 했습니다.
+- 현재 작업 환경에서는 `docker compose up` 실기동 검증은 별도로 하지 못했습니다.
 
 ## Documentation
 
@@ -147,8 +236,3 @@ Planning:
 - [03-technical-design.md](./docs/03-technical-design.md)
 - [04-implementation-plan.md](./docs/04-implementation-plan.md)
 - [05-agile-delivery-plan.md](./docs/05-agile-delivery-plan.md)
-
-## Scripts
-
-- [docker-start.sh](./scripts/docker-start.sh)
-- [docker-stop.sh](./scripts/docker-stop.sh)
