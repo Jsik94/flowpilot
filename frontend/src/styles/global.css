@@ -1202,6 +1202,14 @@ textarea {
   margin-top: 24px;
 }
 
+.report-action-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr);
+  gap: 18px;
+  margin-top: 24px;
+  align-items: start;
+}
+
 .report-priority-card {
   display: grid;
   gap: 12px;
@@ -1223,12 +1231,79 @@ textarea {
   border-color: rgba(143, 184, 255, 0.28);
 }
 
+.report-summary-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.report-summary-card {
+  display: grid;
+  gap: 14px;
+}
+
+.report-summary-head,
+.report-summary-row,
+.report-subsection-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.report-summary-list {
+  display: grid;
+  gap: 12px;
+}
+
+.report-summary-item,
+.report-summary-link-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--item-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.report-summary-item strong,
+.report-summary-link-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.report-summary-link-card {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.report-summary-link-card:hover {
+  border-color: var(--active-border);
+}
+
+.report-summary-item p,
+.report-summary-link-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.report-summary-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .report-visual-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-top: 24px;
   align-items: start;
+}
+
+.report-subsection-header {
+  margin-top: 24px;
 }
 
 .report-visual-card {
@@ -1460,15 +1535,18 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   margin-top: 24px;
+  align-items: start;
 }
 
 .report-swimlane-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding: 20px;
   border-radius: 18px;
   border: 1px solid var(--item-border);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  align-self: start;
 }
 
 .report-swimlane-header {
@@ -1479,7 +1557,8 @@ textarea {
 }
 
 .report-swimlane-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -2073,6 +2152,7 @@ textarea {
   .glance-columns,
   .report-stats-grid,
   .report-guide-grid,
+  .report-action-layout,
   .report-priority-grid,
   .report-visual-grid,
   .report-category-grid,
@@ -2090,6 +2170,11 @@ textarea {
 
   .repository-status-row {
     grid-template-columns: 1fr;
+  }
+
+  .report-subsection-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .detail-drawer {

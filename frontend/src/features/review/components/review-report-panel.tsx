@@ -17,6 +17,12 @@ export function ReviewReportPanel({
   onSelectFinding,
   onSelectWorkflow,
 }: ReviewReportPanelProps) {
+  const reviewLensByKey = new Map(report?.reviewLenses.map((lens) => [lens.key, lens]) ?? []);
+  const phaseSegments = report ? buildPhaseSegments(report) : [];
+  const riskMatrixNodes = report ? buildRiskMatrixNodes(report) : [];
+  const failureHighlights = report?.failureInsights.items.slice(0, 3) ?? [];
+  const optimizationHighlights = report?.optimizationRows.slice(0, 4) ?? [];
+
   return (
     <section className="panel report-panel">
       <div className="panel-header">
@@ -118,8 +124,94 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Visual Dashboard</p>
-                <h2>브랜치 구조를 한 번에 보는 시각 요약</h2>
+                <p className="eyebrow">Action Center</p>
+                <h2>먼저 볼 것과 바로 할 것</h2>
+                <p className="muted">중복되는 목록을 줄이고, 지금 의사결정에 필요한 신호만 상단에 모았습니다.</p>
+              </div>
+            </div>
+
+            <div className="report-action-layout">
+              <div className="report-priority-grid">
+                {report.priorityActions.map((action) => (
+                  <article key={action.id} className={`report-priority-card is-${action.severity}`}>
+                    <div className="report-finding-top">
+                      <span className={`pill pill-${action.severity}`}>{action.severity}</span>
+                      <strong>{action.title}</strong>
+                    </div>
+                    {action.workflowName ? <p className="issue-target">{action.workflowName}</p> : null}
+                    <p><strong>왜 먼저 봐야 하나</strong> {action.why}</p>
+                    <p><strong>기대 효과</strong> {action.expectedImpact}</p>
+                  </article>
+                ))}
+              </div>
+
+              <div className="report-summary-stack">
+                <article className="report-card report-summary-card">
+                  <div className="report-summary-head">
+                    <div>
+                      <span className="detail-label">Failure Pulse</span>
+                      <strong>{report.failureInsights.summary}</strong>
+                    </div>
+                    <span className="badge">{report.failureInsights.items.length}</span>
+                  </div>
+
+                  {report.failureInsights.patterns.length > 0 ? (
+                    <ul className="report-bullet-list report-compact-list">
+                      {report.failureInsights.patterns.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  {failureHighlights.length > 0 ? (
+                    <div className="report-summary-list">
+                      {failureHighlights.map((item) => (
+                        <button
+                          key={item.fileName}
+                          className="report-summary-link-card"
+                          onClick={() => onSelectWorkflow(item.fileName)}
+                          type="button"
+                        >
+                          <strong>{item.workflowName}</strong>
+                          <p className="report-summary-meta">{item.fileName}</p>
+                          <p>최근 실패 {item.failureCount}건</p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+
+                <article className="report-card report-summary-card">
+                  <div>
+                    <span className="detail-label">Optimization Highlights</span>
+                    <strong>중복과 지연을 줄이는 우선 정리</strong>
+                  </div>
+                  <p className="muted">전체 표 대신 먼저 효과가 큰 항목만 추렸습니다.</p>
+
+                  <div className="report-summary-list">
+                    {optimizationHighlights.map((row) => (
+                      <div key={row.id} className="report-summary-item">
+                        <div className="report-summary-row">
+                          <span className={`report-focus-chip focus-${mapFocusTone(row.focus)}`}>{row.focus}</span>
+                          <span className="report-summary-meta">{row.workflowName ?? '브랜치 전체'}</span>
+                        </div>
+                        <strong>{row.issue}</strong>
+                        <p>{row.recommendation}</p>
+                        <p className="report-summary-meta">{row.expectedImpact}</p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Flow Overview</p>
+                <h2>브랜치 구조를 한 번에 보는 흐름 요약</h2>
+                <p className="muted">시각 요약과 스윔레인을 한 섹션에 모아 흐름 파악이 끊기지 않게 정리했습니다.</p>
               </div>
             </div>
 
@@ -130,7 +222,7 @@ export function ReviewReportPanel({
                   <span className="badge">{report.stats.workflowCount} workflows</span>
                 </div>
                 <div className="report-phase-stack" aria-label="workflow phase distribution">
-                  {buildPhaseSegments(report).map((segment) => (
+                  {phaseSegments.map((segment) => (
                     <div
                       key={segment.label}
                       className={`report-phase-segment phase-${segment.tone}`}
@@ -140,7 +232,7 @@ export function ReviewReportPanel({
                   ))}
                 </div>
                 <div className="report-phase-legend">
-                  {buildPhaseSegments(report).map((segment) => (
+                  {phaseSegments.map((segment) => (
                     <span key={segment.label} className="report-phase-legend-item">
                       <span className={`legend-dot ${mapPhaseLegendClass(segment.tone)}`} />
                       {segment.label} {segment.count}
@@ -184,7 +276,7 @@ export function ReviewReportPanel({
                   ))}
                   <text x="16" y="28" className="report-risk-axis-label">risk</text>
                   <text x="464" y="264" className="report-risk-axis-label">jobs</text>
-                  {buildRiskMatrixNodes(report).map((node) => (
+                  {riskMatrixNodes.map((node) => (
                     <g key={node.filePath}>
                       <title>{`${node.fullLabel} · jobs ${node.jobCount} · risk ${node.riskCount} · ${node.phaseLabel}`}</title>
                       <circle
@@ -196,126 +288,18 @@ export function ReviewReportPanel({
                     </g>
                   ))}
                 </svg>
-                <div className="report-risk-summary-list">
-                  {buildRiskSummaryRows(report).map((row) => (
-                    <button
-                      key={row.filePath}
-                      className="report-risk-summary-item"
-                      onClick={() => onSelectWorkflow(row.fileName)}
-                      type="button"
-                    >
-                      <div>
-                        <strong>{row.workflowName}</strong>
-                        <p className="report-table-subtext">{row.fileName}</p>
-                      </div>
-                      <span className={`report-phase-chip phase-${mapPhaseTone(row.phaseLabel)}`}>
-                        {row.phaseLabel}
-                      </span>
-                      <span className="report-risk-summary-meta">
-                        jobs {row.jobCount} · risk {row.riskCount}
-                      </span>
-                    </button>
-                  ))}
-                </div>
                 <p className="muted">
                   오른쪽일수록 job 수가 많고, 위로 갈수록 위험도 경고가 많은 workflow입니다.
                 </p>
               </article>
             </div>
-          </section>
 
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
+            <div className="report-subsection-header">
               <div>
-                <p className="eyebrow">Priority Actions</p>
-                <h2>지금 먼저 손대야 할 항목</h2>
+                <span className="detail-label">Swimlanes</span>
+                <strong>트리거 기준 흐름 정리</strong>
               </div>
-            </div>
-
-            <div className="report-priority-grid">
-              {report.priorityActions.map((action) => (
-                <article key={action.id} className={`report-priority-card is-${action.severity}`}>
-                  <div className="report-finding-top">
-                    <span className={`pill pill-${action.severity}`}>{action.severity}</span>
-                    <strong>{action.title}</strong>
-                  </div>
-                  {action.workflowName ? <p className="issue-target">{action.workflowName}</p> : null}
-                  <p><strong>왜 먼저 봐야 하나</strong> {action.why}</p>
-                  <p><strong>기대 효과</strong> {action.expectedImpact}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Workflow Inventory</p>
-                <h2>workflow 인벤토리</h2>
-                <p className="muted">전체 workflow를 역할, trigger, 위험도 기준으로 빠르게 훑는 표입니다.</p>
-              </div>
-            </div>
-
-            <div className="report-table-shell">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Workflow</th>
-                    <th>Phase</th>
-                    <th>Trigger</th>
-                    <th>Roles</th>
-                    <th>Jobs</th>
-                    <th>Risk</th>
-                    <th>ETA</th>
-                    <th>Failure</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.inventoryRows.map((row) => (
-                    <tr key={row.filePath}>
-                      <td>
-                        <button
-                          className="report-table-link"
-                          onClick={() => onSelectWorkflow(row.fileName)}
-                          type="button"
-                        >
-                          {row.workflowName}
-                        </button>
-                        <p className="report-table-subtext">{row.fileName}</p>
-                      </td>
-                      <td>
-                        <span className={`report-phase-chip phase-${mapPhaseTone(row.phaseLabel)}`}>
-                          {row.phaseLabel}
-                        </span>
-                      </td>
-                      <td>{row.triggerSummary}</td>
-                      <td>
-                        <div className="report-role-badges">
-                          {row.roles.map((role) => (
-                            <span key={`${row.filePath}-${role}`} className="report-role-badge">
-                              {role}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>{row.jobCount}</td>
-                      <td>{row.riskCount}</td>
-                      <td>{row.estimatedDurationText}</td>
-                      <td>{row.failureText}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Flow Lanes</p>
-                <h2>브랜치 흐름 스윔레인</h2>
-                <p className="muted">force graph와 별개로, 읽기 쉬운 레인 형태로 현재 브랜치 흐름을 정리합니다.</p>
-              </div>
+              <p className="muted">force graph와 별개로, 각 workflow를 레인별로 묶어 전체 구성을 읽기 쉽게 정리합니다.</p>
             </div>
 
             <div className="report-swimlane-grid">
@@ -352,31 +336,79 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Workflow Focus</p>
+                <h2>먼저 훑어볼 workflow 카드</h2>
+                <p className="muted">표 대신 카드형으로 정리해, 위험도와 역할이 높은 workflow부터 빠르게 읽을 수 있게 했습니다.</p>
+              </div>
+            </div>
+
+            <div className="report-workflow-grid">
+              {report.workflowCards.map((workflow) => (
+                <button
+                  key={workflow.filePath}
+                  className="report-workflow-card"
+                  onClick={() => onSelectWorkflow(workflow.fileName)}
+                  type="button"
+                >
+                  <div className="report-workflow-top">
+                    <div>
+                      <strong>{workflow.workflowName}</strong>
+                      <p className="report-table-subtext">{workflow.fileName}</p>
+                    </div>
+                    <span className={`report-phase-chip phase-${mapPhaseTone(workflow.phaseLabel)}`}>
+                      {workflow.phaseLabel}
+                    </span>
+                  </div>
+
+                  <div className="report-role-badges">
+                    {workflow.roles.map((role) => (
+                      <span key={`${workflow.filePath}-${role}`} className="report-role-badge">
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+
+                  <p>{workflow.headline}</p>
+                  <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
+
+                  <div className="report-workflow-meta">
+                    <span>{workflow.triggerSummary}</span>
+                    <span>{workflow.estimatedDurationText}</span>
+                    <span>{workflow.failureText}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">CI Evaluation</p>
                 <h2>평가 관점과 heatmap</h2>
               </div>
             </div>
 
             <div className="report-category-grid">
-              {report.categoryScores.map((category) => (
-                <article key={category.key} className={`report-category-card category-${category.key}`}>
-                  <div className="report-category-top">
-                    <strong>{category.label}</strong>
-                    <span className="badge">{category.score}점</span>
-                  </div>
-                  <div className="report-category-chip-row">
-                    <span className={`report-category-chip category-${category.key}`}>{category.label}</span>
-                  </div>
-                  <div className="report-progress-track">
-                    <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
-                  </div>
-                  <p>{category.summary}</p>
-                  {report.reviewLenses.find((lens) => lens.key === category.key)?.findings.length ? (
-                    <ul className="report-bullet-list report-compact-list">
-                      {report.reviewLenses
-                        .find((lens) => lens.key === category.key)
-                        ?.findings.slice(0, 2)
-                        .map((finding) => (
+              {report.categoryScores.map((category) => {
+                const lens = reviewLensByKey.get(category.key);
+
+                return (
+                  <article key={category.key} className={`report-category-card category-${category.key}`}>
+                    <div className="report-category-top">
+                      <strong>{category.label}</strong>
+                      <span className="badge">{category.score}점</span>
+                    </div>
+                    <div className="report-category-chip-row">
+                      <span className={`report-category-chip category-${category.key}`}>{category.label}</span>
+                    </div>
+                    <div className="report-progress-track">
+                      <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
+                    </div>
+                    <p>{category.summary}</p>
+                    {lens?.findings.length ? (
+                      <ul className="report-bullet-list report-compact-list">
+                        {lens.findings.slice(0, 2).map((finding) => (
                           <li key={finding.id}>
                             <button
                               className="report-inline-link"
@@ -387,10 +419,11 @@ export function ReviewReportPanel({
                             </button>
                           </li>
                         ))}
-                    </ul>
-                  ) : null}
-                </article>
-              ))}
+                      </ul>
+                    ) : null}
+                  </article>
+                );
+              })}
             </div>
 
             <div className="report-table-shell report-heatmap-shell">
@@ -525,96 +558,6 @@ export function ReviewReportPanel({
                 )}
               </article>
             </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Optimization</p>
-                <h2>최적화 액션 테이블</h2>
-                <p className="muted">중복 작업, 지연 시간, 효율화 포인트를 한 번에 정리한 실행용 표입니다.</p>
-              </div>
-            </div>
-
-            <div className="report-table-shell">
-              <table className="report-table report-optimization-table">
-                <thead>
-                  <tr>
-                    <th>Focus</th>
-                    <th>Workflow</th>
-                    <th>Issue</th>
-                    <th>Evidence</th>
-                    <th>Recommendation</th>
-                    <th>Expected Impact</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.optimizationRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <span className={`report-focus-chip focus-${mapFocusTone(row.focus)}`}>{row.focus}</span>
-                      </td>
-                      <td>{row.workflowName ?? '브랜치 전체'}</td>
-                      <td>{row.issue}</td>
-                      <td>{row.evidence}</td>
-                      <td>{row.recommendation}</td>
-                      <td>{row.expectedImpact}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Failure Snapshot</p>
-                <h2>현재 브랜치 실패 요약</h2>
-              </div>
-            </div>
-
-            <article className="report-card">
-              <span className="detail-label">Recent Failures</span>
-              <strong>{report.failureInsights.summary}</strong>
-              {report.failureInsights.patterns.length > 0 ? (
-                <ul className="report-bullet-list report-compact-list">
-                  {report.failureInsights.patterns.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : null}
-              {report.failureInsights.items.length > 0 ? (
-                <div className="report-role-list">
-                  {report.failureInsights.items.map((item) => (
-                    <div key={item.fileName} className="report-role-item">
-                      <strong>{item.workflowName}</strong>
-                      <p>{item.fileName}</p>
-                      <p>최근 실패 {item.failureCount}건</p>
-                      <p className="issue-target">
-                        {item.latestFailureJobs.length > 0
-                          ? `실패 job: ${item.latestFailureJobs.join(', ')}`
-                          : '최근 실패 job 상세 없음'}
-                      </p>
-                      {item.recurringFailedJobs.length > 0 ? (
-                        <p>
-                          반복 실패: {item.recurringFailedJobs.map((failure) => `${failure.jobName}(${failure.count})`).join(', ')}
-                        </p>
-                      ) : null}
-                      {item.recentFailures.length > 0 ? (
-                        <ul className="report-mini-list">
-                          {item.recentFailures.map((failure) => (
-                            <li key={`${item.fileName}-${failure.runNumber}`}>
-                              #{failure.runNumber} {failure.title} · {failure.failedJobs.join(', ') || '실패 job 미상'}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </article>
           </section>
 
           <section className="report-section report-section-spacious">
@@ -817,28 +760,11 @@ function buildRiskMatrixNodes(report: CiReviewReport) {
     y: 228 - (row.riskCount / maxRisk) * 180,
     radius: 8 + Math.min(10, row.roles.length * 2),
     tone: mapPhaseTone(row.phaseLabel),
-    label: truncateWorkflowLabel(row.workflowName),
     fullLabel: row.workflowName,
     jobCount: row.jobCount,
     riskCount: row.riskCount,
     phaseLabel: row.phaseLabel,
   }));
-}
-
-function truncateWorkflowLabel(label: string) {
-  return label.length > 18 ? `${label.slice(0, 18)}…` : label;
-}
-
-function buildRiskSummaryRows(report: CiReviewReport) {
-  return [...report.inventoryRows]
-    .sort((left, right) => {
-      if (right.riskCount !== left.riskCount) {
-        return right.riskCount - left.riskCount;
-      }
-
-      return right.jobCount - left.jobCount;
-    })
-    .slice(0, 5);
 }
 
 function mapPhaseLegendClass(tone: 'pre' | 'post' | 'manual') {
