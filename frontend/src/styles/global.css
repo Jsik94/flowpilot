@@ -1223,6 +1223,104 @@ textarea {
   border-color: rgba(143, 184, 255, 0.28);
 }
 
+.report-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.report-visual-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid var(--item-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+.report-visual-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.report-phase-stack {
+  display: flex;
+  width: 100%;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.report-phase-segment.phase-pre {
+  background: linear-gradient(90deg, rgba(143, 184, 255, 0.88), rgba(143, 184, 255, 0.62));
+}
+
+.report-phase-segment.phase-post {
+  background: linear-gradient(90deg, rgba(91, 209, 165, 0.88), rgba(91, 209, 165, 0.62));
+}
+
+.report-phase-segment.phase-manual {
+  background: linear-gradient(90deg, rgba(214, 222, 239, 0.88), rgba(214, 222, 239, 0.6));
+}
+
+.report-phase-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.report-phase-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-risk-matrix {
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  background: rgba(6, 16, 28, 0.36);
+}
+
+.report-risk-axis {
+  stroke: rgba(214, 222, 239, 0.48);
+  stroke-width: 1.2;
+}
+
+.report-risk-grid {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+}
+
+.report-risk-axis-label,
+.report-risk-node-label {
+  fill: rgba(214, 222, 239, 0.78);
+  font-size: 11px;
+  font-family: "Avenir Next", sans-serif;
+}
+
+.report-risk-node {
+  opacity: 0.88;
+}
+
+.report-risk-node.phase-pre {
+  fill: rgba(143, 184, 255, 0.92);
+}
+
+.report-risk-node.phase-post {
+  fill: rgba(91, 209, 165, 0.9);
+}
+
+.report-risk-node.phase-manual {
+  fill: rgba(214, 222, 239, 0.84);
+}
+
 .report-table-shell {
   margin-top: 24px;
   overflow-x: auto;
@@ -1944,6 +2042,7 @@ textarea {
   .report-stats-grid,
   .report-guide-grid,
   .report-priority-grid,
+  .report-visual-grid,
   .report-category-grid,
   .report-stage-grid,
   .report-architecture-grid,

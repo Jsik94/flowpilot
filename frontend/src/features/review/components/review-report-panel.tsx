@@ -118,6 +118,96 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Visual Dashboard</p>
+                <h2>브랜치 구조를 한 번에 보는 시각 요약</h2>
+              </div>
+            </div>
+
+            <div className="report-visual-grid">
+              <article className="report-visual-card">
+                <div className="report-visual-top">
+                  <strong>Phase Distribution</strong>
+                  <span className="badge">{report.stats.workflowCount} workflows</span>
+                </div>
+                <div className="report-phase-stack" aria-label="workflow phase distribution">
+                  {buildPhaseSegments(report).map((segment) => (
+                    <div
+                      key={segment.label}
+                      className={`report-phase-segment phase-${segment.tone}`}
+                      style={{ width: `${segment.width}%` }}
+                      title={`${segment.label}: ${segment.count}`}
+                    />
+                  ))}
+                </div>
+                <div className="report-phase-legend">
+                  {buildPhaseSegments(report).map((segment) => (
+                    <span key={segment.label} className="report-phase-legend-item">
+                      <span className={`legend-dot legend-${segment.tone}-dot`} />
+                      {segment.label} {segment.count}
+                    </span>
+                  ))}
+                </div>
+              </article>
+
+              <article className="report-visual-card">
+                <div className="report-visual-top">
+                  <strong>Workflow Risk Matrix</strong>
+                  <span className="badge">jobs vs risk</span>
+                </div>
+                <svg
+                  className="report-risk-matrix"
+                  viewBox="0 0 540 280"
+                  role="img"
+                  aria-label="workflow risk matrix"
+                >
+                  <line x1="64" y1="24" x2="64" y2="228" className="report-risk-axis" />
+                  <line x1="64" y1="228" x2="504" y2="228" className="report-risk-axis" />
+                  {[0, 1, 2, 3].map((step) => (
+                    <line
+                      key={`h-${step}`}
+                      x1="64"
+                      y1={24 + step * 68}
+                      x2="504"
+                      y2={24 + step * 68}
+                      className="report-risk-grid"
+                    />
+                  ))}
+                  {[0, 1, 2, 3, 4].map((step) => (
+                    <line
+                      key={`v-${step}`}
+                      x1={64 + step * 110}
+                      y1="24"
+                      x2={64 + step * 110}
+                      y2="228"
+                      className="report-risk-grid"
+                    />
+                  ))}
+                  <text x="16" y="28" className="report-risk-axis-label">risk</text>
+                  <text x="464" y="264" className="report-risk-axis-label">jobs</text>
+                  {buildRiskMatrixNodes(report).map((node) => (
+                    <g key={node.filePath}>
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r={node.radius}
+                        className={`report-risk-node phase-${node.tone}`}
+                      />
+                      <text x={node.x} y={node.y + node.radius + 14} className="report-risk-node-label">
+                        {node.label}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+                <p className="muted">
+                  오른쪽일수록 job 수가 많고, 위로 갈수록 위험도 경고가 많은 workflow입니다.
+                </p>
+              </article>
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">Priority Actions</p>
                 <h2>지금 먼저 손대야 할 항목</h2>
               </div>
@@ -671,4 +761,47 @@ function mapFocusTone(focus: '중복 작업' | '지연 시간' | '효율화') {
     default:
       return 'efficiency';
   }
+}
+
+function buildPhaseSegments(report: CiReviewReport) {
+  const total = Math.max(1, report.stats.workflowCount);
+
+  return [
+    {
+      label: '머지 이전',
+      count: report.stats.preMergeCount,
+      width: (report.stats.preMergeCount / total) * 100,
+      tone: 'pre',
+    },
+    {
+      label: '머지 이후',
+      count: report.stats.postMergeCount,
+      width: (report.stats.postMergeCount / total) * 100,
+      tone: 'post',
+    },
+    {
+      label: '수동/기타',
+      count: report.stats.manualCount,
+      width: (report.stats.manualCount / total) * 100,
+      tone: 'manual',
+    },
+  ].filter((segment) => segment.count > 0);
+}
+
+function buildRiskMatrixNodes(report: CiReviewReport) {
+  const maxJobs = Math.max(1, ...report.inventoryRows.map((row) => row.jobCount));
+  const maxRisk = Math.max(1, ...report.inventoryRows.map((row) => row.riskCount));
+
+  return report.inventoryRows.slice(0, 12).map((row) => ({
+    filePath: row.filePath,
+    x: 64 + (row.jobCount / maxJobs) * 440,
+    y: 228 - (row.riskCount / maxRisk) * 180,
+    radius: 8 + Math.min(10, row.roles.length * 2),
+    tone: mapPhaseTone(row.phaseLabel),
+    label: truncateWorkflowLabel(row.workflowName),
+  }));
+}
+
+function truncateWorkflowLabel(label: string) {
+  return label.length > 18 ? `${label.slice(0, 18)}…` : label;
 }
