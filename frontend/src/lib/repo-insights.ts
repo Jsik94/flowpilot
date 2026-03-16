@@ -152,6 +152,28 @@ export function buildReviewMarkdown(input: {
           .join('\n')
       : '- priority actions unavailable',
     '',
+    '## Workflow Inventory',
+    ciReview?.inventoryRows.length
+      ? [
+          '| Workflow | Phase | Trigger | Roles | Jobs | Risk | ETA | Failure |',
+          '| --- | --- | --- | --- | ---: | ---: | --- | --- |',
+          ...ciReview.inventoryRows.map(
+            (row) =>
+              `| ${row.workflowName} | ${row.phaseLabel} | ${row.triggerSummary} | ${row.roles.join(', ')} | ${row.jobCount} | ${row.riskCount} | ${row.estimatedDurationText} | ${row.failureText} |`,
+          ),
+        ].join('\n')
+      : '- workflow inventory unavailable',
+    '',
+    '## Flow Lanes',
+    ciReview?.flowLanes.length
+      ? ciReview.flowLanes
+          .map(
+            (lane) =>
+              `- ${lane.label}: ${lane.description}\n${lane.items.map((item) => `  - ${item.workflowName} (${item.fileName}) - ${item.summary}`).join('\n') || '  - none'}`,
+          )
+          .join('\n')
+      : '- flow lanes unavailable',
+    '',
     '## Failure Snapshot',
     ciReview?.failureInsights.items.length
       ? ciReview.failureInsights.items
@@ -166,6 +188,16 @@ export function buildReviewMarkdown(input: {
           .join('\n')
       : '- failure snapshot unavailable',
     '',
+    '## Category Heatmap',
+    ciReview?.heatmapRows.length
+      ? ciReview.heatmapRows
+          .map(
+            (row) =>
+              `- ${row.workflowName}: ${row.cells.map((cell) => `${cell.label} ${cell.level}${cell.count ? `(${cell.count})` : ''}`).join(' / ')}`,
+          )
+          .join('\n')
+      : '- category heatmap unavailable',
+    '',
     '## Review Lenses',
     ciReview?.reviewLenses.length
       ? ciReview.reviewLenses
@@ -176,15 +208,15 @@ export function buildReviewMarkdown(input: {
           .join('\n')
       : '- review lenses unavailable',
     '',
-    '## Workflow Performance',
-    ciReview?.workflowCards.length
-      ? ciReview.workflowCards
+    '## Optimization Table',
+    ciReview?.optimizationRows.length
+      ? ciReview.optimizationRows
           .map(
-            (workflow) =>
-              `- ${workflow.workflowName}: ${workflow.estimatedDurationText}, ${workflow.failureText}\n  ${workflow.analysisSummary}`,
+            (row) =>
+              `- ${row.focus}: ${row.issue}${row.workflowName ? ` (${row.workflowName})` : ''}\n  Evidence: ${row.evidence}\n  Recommendation: ${row.recommendation}\n  Expected impact: ${row.expectedImpact}`,
           )
           .join('\n')
-      : '- workflow performance unavailable',
+      : '- optimization table unavailable',
     '',
     '## Workflow Deep Dive',
     ciReview?.workflowDeepDives.length
@@ -198,6 +230,16 @@ export function buildReviewMarkdown(input: {
     '',
     '## Repository Analysis',
     repoInsight?.summary ?? '레포 분석 정보가 아직 없습니다.',
+    '',
+    '## Repository Coverage Matrix',
+    ciReview?.repoCoverageRows.length
+      ? ciReview.repoCoverageRows
+          .map(
+            (row) =>
+              `- ${row.area} [${row.status}]\n  Signal: ${row.signal}\n  Expectation: ${row.expectation}\n  Current: ${row.currentState}\n  Note: ${row.note}`,
+          )
+          .join('\n')
+      : '- repository coverage matrix unavailable',
     '',
     `- Confidence: ${repoInsight?.confidence ?? 'unknown'}`,
     `- Frameworks: ${(repoInsight?.frameworks ?? []).join(', ') || 'none'}`,
@@ -318,6 +360,86 @@ export function buildReviewHtml(input: {
         .join('')
     : '<p class="muted">관점별 요약을 아직 생성하지 못했습니다.</p>';
 
+  const inventoryRows = ciReview?.inventoryRows.length
+    ? ciReview.inventoryRows
+        .map(
+          (row) => `
+            <tr>
+              <td>${escapeHtml(row.workflowName)}<br /><span class="muted">${escapeHtml(row.fileName)}</span></td>
+              <td>${escapeHtml(row.phaseLabel)}</td>
+              <td>${escapeHtml(row.triggerSummary)}</td>
+              <td>${escapeHtml(row.roles.join(', '))}</td>
+              <td>${escapeHtml(String(row.jobCount))}</td>
+              <td>${escapeHtml(String(row.riskCount))}</td>
+              <td>${escapeHtml(row.estimatedDurationText)}</td>
+              <td>${escapeHtml(row.failureText)}</td>
+            </tr>`,
+        )
+        .join('')
+    : '';
+
+  const heatmapRows = ciReview?.heatmapRows.length
+    ? ciReview.heatmapRows
+        .map(
+          (row) => `
+            <tr>
+              <td>${escapeHtml(row.workflowName)}<br /><span class="muted">${escapeHtml(row.fileName)}</span></td>
+              ${row.cells
+                .map(
+                  (cell) =>
+                    `<td><span class="heatmap heatmap-${escapeHtml(cell.level)}">${escapeHtml(String(cell.count || '·'))}</span></td>`,
+                )
+                .join('')}
+            </tr>`,
+        )
+        .join('')
+    : '';
+
+  const coverageRows = ciReview?.repoCoverageRows.length
+    ? ciReview.repoCoverageRows
+        .map(
+          (row) => `
+            <tr>
+              <td>${escapeHtml(row.area)}</td>
+              <td>${escapeHtml(row.signal)}</td>
+              <td>${escapeHtml(row.expectation)}</td>
+              <td>${escapeHtml(row.currentState)}</td>
+              <td><span class="badge status-${escapeHtml(row.status)}">${escapeHtml(row.status)}</span></td>
+              <td>${escapeHtml(row.note)}</td>
+            </tr>`,
+        )
+        .join('')
+    : '';
+
+  const optimizationRows = ciReview?.optimizationRows.length
+    ? ciReview.optimizationRows
+        .map(
+          (row) => `
+            <tr>
+              <td>${escapeHtml(row.focus)}</td>
+              <td>${escapeHtml(row.workflowName ?? '브랜치 전체')}</td>
+              <td>${escapeHtml(row.issue)}</td>
+              <td>${escapeHtml(row.evidence)}</td>
+              <td>${escapeHtml(row.recommendation)}</td>
+              <td>${escapeHtml(row.expectedImpact)}</td>
+            </tr>`,
+        )
+        .join('')
+    : '';
+
+  const flowLanes = ciReview?.flowLanes.length
+    ? ciReview.flowLanes
+        .map(
+          (lane) => `
+            <article class="detail-card">
+              <h3>${escapeHtml(lane.label)}</h3>
+              <p>${escapeHtml(lane.description)}</p>
+              <ul>${lane.items.map((item) => `<li>${escapeHtml(`${item.workflowName} (${item.fileName}) - ${item.summary}`)}</li>`).join('')}</ul>
+            </article>`,
+        )
+        .join('')
+    : '<p class="muted">flow lanes unavailable</p>';
+
   const deepDives = ciReview?.workflowDeepDives.length
     ? ciReview.workflowDeepDives
         .map(
@@ -396,6 +518,18 @@ export function buildReviewHtml(input: {
       .deep-grid, .finding-grid { grid-template-columns: 1fr; }
       .detail-card, .stage-card, .deep-card, .finding-card { padding: 18px; }
       .badge { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #eaf1ff; color: #274c7c; font-size: 12px; font-weight: 700; }
+      .status-good { background: #e7fbf2; color: #156c52; }
+      .status-watch { background: #fff5dd; color: #8a5a00; }
+      .status-gap { background: #ffe8eb; color: #9a3041; }
+      .table-shell { overflow-x: auto; border: 1px solid #e4ebf3; border-radius: 14px; background: #fff; }
+      table { width: 100%; min-width: 880px; border-collapse: collapse; }
+      th, td { padding: 14px 16px; border-bottom: 1px solid #e4ebf3; text-align: left; vertical-align: top; }
+      th { color: #66788a; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; background: #f8fbff; }
+      .heatmap { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; font-weight: 700; }
+      .heatmap-none { background: #f1f5fb; color: #8da0b5; }
+      .heatmap-info { background: #eaf1ff; color: #385a8c; }
+      .heatmap-warning { background: #fff3d6; color: #8a5a00; }
+      .heatmap-critical { background: #ffe5e9; color: #9a3041; }
       .deep-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
       ul { margin: 10px 0 0; padding-left: 18px; }
       li + li { margin-top: 6px; }
@@ -423,6 +557,32 @@ export function buildReviewHtml(input: {
       </section>
 
       <section class="section">
+        <h2>Workflow Inventory</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Phase</th>
+                <th>Trigger</th>
+                <th>Roles</th>
+                <th>Jobs</th>
+                <th>Risk</th>
+                <th>ETA</th>
+                <th>Failure</th>
+              </tr>
+            </thead>
+            <tbody>${inventoryRows}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Flow Lanes</h2>
+        <div class="detail-grid">${flowLanes}</div>
+      </section>
+
+      <section class="section">
         <h2>Priority Actions</h2>
         <div class="detail-grid">${priorityActions}</div>
       </section>
@@ -435,8 +595,61 @@ export function buildReviewHtml(input: {
       </section>
 
       <section class="section">
+        <h2>Category Heatmap</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                ${ciReview?.categoryScores.map((category) => `<th>${escapeHtml(category.label)}</th>`).join('') ?? ''}
+              </tr>
+            </thead>
+            <tbody>${heatmapRows}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
         <h2>Review Lenses</h2>
         <div class="detail-grid">${lensRows}</div>
+      </section>
+
+      <section class="section">
+        <h2>Optimization Table</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Focus</th>
+                <th>Workflow</th>
+                <th>Issue</th>
+                <th>Evidence</th>
+                <th>Recommendation</th>
+                <th>Expected Impact</th>
+              </tr>
+            </thead>
+            <tbody>${optimizationRows}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Repository Coverage Matrix</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Signal</th>
+                <th>Expectation</th>
+                <th>Current</th>
+                <th>Status</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>${coverageRows}</tbody>
+          </table>
+        </div>
       </section>
 
       <section class="section">

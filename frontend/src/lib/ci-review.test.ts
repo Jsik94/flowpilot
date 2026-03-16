@@ -64,6 +64,11 @@ test('buildCiReviewReport flags missing timeout and cache strategy', () => {
   assert.ok(report.findings.some((finding) => finding.summary.includes('캐시') && typeof finding.line === 'number'));
   assert.ok(report.categoryScores.some((category) => category.key === 'performance'));
   assert.ok(report.workflowCards.length > 0);
+  assert.ok(report.inventoryRows.length > 0);
+  assert.ok(report.heatmapRows.length > 0);
+  assert.ok(report.flowLanes.length === 3);
+  assert.ok(report.repoCoverageRows.length > 0);
+  assert.ok(report.optimizationRows.length > 0);
   assert.ok(report.roleAnalysis.gaps.some((gap) => gap.role === 'Release / Deploy Guard'));
   assert.ok(report.priorityActions.length > 0);
 });
@@ -161,4 +166,5 @@ test('buildCiReviewReport detects overlapping workflow roles', () => {
   assert.ok(report.failureInsights.patterns.length > 0);
   assert.ok(report.reviewLenses.length > 0);
   assert.ok(report.workflowDeepDives.length > 0);
+  assert.ok(report.optimizationRows.some((row) => row.focus === '중복 작업'));
 });

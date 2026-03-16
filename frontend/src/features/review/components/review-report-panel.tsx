@@ -118,40 +118,8 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Reading Guide</p>
-                <h2>이 리포트는 이렇게 읽으면 됩니다</h2>
-              </div>
-            </div>
-
-            <div className="report-guide-grid">
-              <article className="report-card report-guide-card">
-                <span className="detail-label">1. Priority Actions</span>
-                <strong>가장 먼저 손대야 할 항목부터 봅니다</strong>
-                <p>바로 위험을 줄이거나 리드타임을 단축할 수 있는 항목만 앞에 모아뒀습니다.</p>
-              </article>
-              <article className="report-card report-guide-card">
-                <span className="detail-label">2. Category Lenses</span>
-                <strong>보안 / 안정성 / 최적화 관점을 구분해서 읽습니다</strong>
-                <p>각 관점은 색으로 구분되고, 같은 색 카드끼리는 비슷한 성격의 문제를 뜻합니다.</p>
-              </article>
-              <article className="report-card report-guide-card">
-                <span className="detail-label">3. Deep Dive</span>
-                <strong>특정 workflow를 열기 전에 역할과 흐름을 파악합니다</strong>
-                <p>상세 분석 카드에서 해당 workflow가 무엇을 하고 어디가 병목인지 먼저 읽을 수 있습니다.</p>
-              </article>
-              <article className="report-card report-guide-card">
-                <span className="detail-label">4. Findings</span>
-                <strong>마지막에 실제 YAML 위치를 따라갑니다</strong>
-                <p>세부 발견 사항을 누르면 소스 위치로 이어지므로, 먼저 맥락을 이해한 뒤 수정하면 됩니다.</p>
-              </article>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
                 <p className="eyebrow">Priority Actions</p>
-                <h2>지금 먼저 최적화할 항목</h2>
+                <h2>지금 먼저 손대야 할 항목</h2>
               </div>
             </div>
 
@@ -173,8 +141,191 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
+                <p className="eyebrow">Workflow Inventory</p>
+                <h2>workflow 인벤토리</h2>
+                <p className="muted">전체 workflow를 역할, trigger, 위험도 기준으로 빠르게 훑는 표입니다.</p>
+              </div>
+            </div>
+
+            <div className="report-table-shell">
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th>Workflow</th>
+                    <th>Phase</th>
+                    <th>Trigger</th>
+                    <th>Roles</th>
+                    <th>Jobs</th>
+                    <th>Risk</th>
+                    <th>ETA</th>
+                    <th>Failure</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.inventoryRows.map((row) => (
+                    <tr key={row.filePath}>
+                      <td>
+                        <button
+                          className="report-table-link"
+                          onClick={() => onSelectWorkflow(row.fileName)}
+                          type="button"
+                        >
+                          {row.workflowName}
+                        </button>
+                        <p className="report-table-subtext">{row.fileName}</p>
+                      </td>
+                      <td>
+                        <span className={`report-phase-chip phase-${mapPhaseTone(row.phaseLabel)}`}>
+                          {row.phaseLabel}
+                        </span>
+                      </td>
+                      <td>{row.triggerSummary}</td>
+                      <td>
+                        <div className="report-role-badges">
+                          {row.roles.map((role) => (
+                            <span key={`${row.filePath}-${role}`} className="report-role-badge">
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>{row.jobCount}</td>
+                      <td>{row.riskCount}</td>
+                      <td>{row.estimatedDurationText}</td>
+                      <td>{row.failureText}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Flow Lanes</p>
+                <h2>브랜치 흐름 스윔레인</h2>
+                <p className="muted">force graph와 별개로, 읽기 쉬운 레인 형태로 현재 브랜치 흐름을 정리합니다.</p>
+              </div>
+            </div>
+
+            <div className="report-swimlane-grid">
+              {report.flowLanes.map((lane) => (
+                <article key={lane.key} className="report-swimlane-card">
+                  <div className="report-swimlane-header">
+                    <strong>{lane.label}</strong>
+                    <span className="badge">{lane.items.length}</span>
+                  </div>
+                  <p className="muted">{lane.description}</p>
+                  <div className="report-swimlane-list">
+                    {lane.items.length > 0 ? (
+                      lane.items.map((item) => (
+                        <button
+                          key={`${lane.key}-${item.fileName}`}
+                          className="report-swimlane-item"
+                          onClick={() => onSelectWorkflow(item.fileName)}
+                          type="button"
+                        >
+                          <strong>{item.workflowName}</strong>
+                          <span>{item.fileName}</span>
+                          <p>{item.summary}</p>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="empty-state">해당 레인에 분류된 workflow가 없습니다.</p>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">CI Evaluation</p>
+                <h2>평가 관점과 heatmap</h2>
+              </div>
+            </div>
+
+            <div className="report-category-grid">
+              {report.categoryScores.map((category) => (
+                <article key={category.key} className={`report-category-card category-${category.key}`}>
+                  <div className="report-category-top">
+                    <strong>{category.label}</strong>
+                    <span className="badge">{category.score}점</span>
+                  </div>
+                  <div className="report-category-chip-row">
+                    <span className={`report-category-chip category-${category.key}`}>{category.label}</span>
+                  </div>
+                  <div className="report-progress-track">
+                    <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
+                  </div>
+                  <p>{category.summary}</p>
+                  {report.reviewLenses.find((lens) => lens.key === category.key)?.findings.length ? (
+                    <ul className="report-bullet-list report-compact-list">
+                      {report.reviewLenses
+                        .find((lens) => lens.key === category.key)
+                        ?.findings.slice(0, 2)
+                        .map((finding) => (
+                          <li key={finding.id}>
+                            <button
+                              className="report-inline-link"
+                              onClick={() => onSelectFinding(finding)}
+                              type="button"
+                            >
+                              {finding.summary}
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+
+            <div className="report-table-shell report-heatmap-shell">
+              <table className="report-table report-heatmap-table">
+                <thead>
+                  <tr>
+                    <th>Workflow</th>
+                    {report.categoryScores.map((category) => (
+                      <th key={category.key}>{category.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.heatmapRows.map((row) => (
+                    <tr key={row.filePath}>
+                      <td>
+                        <button
+                          className="report-table-link"
+                          onClick={() => onSelectWorkflow(row.fileName)}
+                          type="button"
+                        >
+                          {row.workflowName}
+                        </button>
+                        <p className="report-table-subtext">{row.fileName}</p>
+                      </td>
+                      {row.cells.map((cell) => (
+                        <td key={`${row.filePath}-${cell.key}`}>
+                          <span className={`report-heatmap-cell level-${cell.level}`}>
+                            {cell.count > 0 ? cell.count : '·'}
+                          </span>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
                 <p className="eyebrow">Repository Context</p>
-                <h2>레포 특성 단계별 분석</h2>
+                <h2>레포 맥락과 커버리지 매트릭스</h2>
               </div>
             </div>
 
@@ -195,6 +346,114 @@ export function ReviewReportPanel({
                   </ul>
                 </article>
               ))}
+            </div>
+
+            <div className="report-table-shell">
+              <table className="report-table report-coverage-table">
+                <thead>
+                  <tr>
+                    <th>Area</th>
+                    <th>Signal</th>
+                    <th>Expectation</th>
+                    <th>Current</th>
+                    <th>Status</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.repoCoverageRows.map((row) => (
+                    <tr key={row.area}>
+                      <td>{row.area}</td>
+                      <td>{row.signal}</td>
+                      <td>{row.expectation}</td>
+                      <td>{row.currentState}</td>
+                      <td>
+                        <span className={`report-status-pill status-${row.status}`}>
+                          {mapCoverageStatusLabel(row.status)}
+                        </span>
+                      </td>
+                      <td>{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="report-role-grid">
+              <article className="report-card">
+                <span className="detail-label">Overlaps</span>
+                <strong>역할 중복</strong>
+                {report.roleAnalysis.overlaps.length > 0 ? (
+                  <div className="report-role-list">
+                    {report.roleAnalysis.overlaps.map((item) => (
+                      <div key={item.role} className="report-role-item">
+                        <strong>{item.role}</strong>
+                        <p>{item.summary}</p>
+                        <p className="issue-target">{item.workflows.join(', ')}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>눈에 띄는 역할 중복은 크지 않습니다.</p>
+                )}
+              </article>
+
+              <article className="report-card">
+                <span className="detail-label">Gaps</span>
+                <strong>역할 누락</strong>
+                {report.roleAnalysis.gaps.length > 0 ? (
+                  <div className="report-role-list">
+                    {report.roleAnalysis.gaps.map((item) => (
+                      <div key={item.role} className="report-role-item">
+                        <strong>{item.role}</strong>
+                        <p>{item.summary}</p>
+                        <p>{item.recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>핵심 역할 누락은 상대적으로 적습니다.</p>
+                )}
+              </article>
+            </div>
+          </section>
+
+          <section className="report-section report-section-spacious">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Optimization</p>
+                <h2>최적화 액션 테이블</h2>
+                <p className="muted">중복 작업, 지연 시간, 효율화 포인트를 한 번에 정리한 실행용 표입니다.</p>
+              </div>
+            </div>
+
+            <div className="report-table-shell">
+              <table className="report-table report-optimization-table">
+                <thead>
+                  <tr>
+                    <th>Focus</th>
+                    <th>Workflow</th>
+                    <th>Issue</th>
+                    <th>Evidence</th>
+                    <th>Recommendation</th>
+                    <th>Expected Impact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.optimizationRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className={`report-focus-chip focus-${mapFocusTone(row.focus)}`}>{row.focus}</span>
+                      </td>
+                      <td>{row.workflowName ?? '브랜치 전체'}</td>
+                      <td>{row.issue}</td>
+                      <td>{row.evidence}</td>
+                      <td>{row.recommendation}</td>
+                      <td>{row.expectedImpact}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
 
@@ -252,234 +511,6 @@ export function ReviewReportPanel({
           <section className="report-section report-section-spacious">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Workflow Structure</p>
-                <h2>브랜치 흐름 구성</h2>
-              </div>
-            </div>
-
-            <div className="report-architecture-grid">
-              <article className="report-card">
-                <span className="detail-label">Pre-merge</span>
-                <strong>머지 이전 검증</strong>
-                <p>{report.architecture.preMerge.length ? report.architecture.preMerge.join(', ') : '등록된 workflow 없음'}</p>
-              </article>
-              <article className="report-card">
-                <span className="detail-label">Post-merge</span>
-                <strong>머지 이후 파이프라인</strong>
-                <p>{report.architecture.postMerge.length ? report.architecture.postMerge.join(', ') : '등록된 workflow 없음'}</p>
-              </article>
-              <article className="report-card">
-                <span className="detail-label">Manual / Scheduled</span>
-                <strong>운영성 보조 흐름</strong>
-                <p>{report.architecture.manual.length ? report.architecture.manual.join(', ') : '등록된 workflow 없음'}</p>
-              </article>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Role Analysis</p>
-                <h2>역할 중복과 누락</h2>
-              </div>
-            </div>
-
-            <div className="report-role-grid">
-              <article className="report-card">
-                <span className="detail-label">Overlaps</span>
-                <strong>역할 중복</strong>
-                {report.roleAnalysis.overlaps.length > 0 ? (
-                  <div className="report-role-list">
-                    {report.roleAnalysis.overlaps.map((item) => (
-                      <div key={item.role} className="report-role-item">
-                        <strong>{item.role}</strong>
-                        <p>{item.summary}</p>
-                        <p className="issue-target">{item.workflows.join(', ')}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>눈에 띄는 역할 중복은 크지 않습니다.</p>
-                )}
-              </article>
-
-              <article className="report-card">
-                <span className="detail-label">Gaps</span>
-                <strong>역할 누락</strong>
-                {report.roleAnalysis.gaps.length > 0 ? (
-                  <div className="report-role-list">
-                    {report.roleAnalysis.gaps.map((item) => (
-                      <div key={item.role} className="report-role-item">
-                        <strong>{item.role}</strong>
-                        <p>{item.summary}</p>
-                        <p>{item.recommendation}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>핵심 역할 누락은 상대적으로 적습니다.</p>
-                )}
-              </article>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Optimization</p>
-                <h2>최적화 관점 인사이트</h2>
-              </div>
-            </div>
-
-            <div className="report-role-grid">
-              <article className="report-card">
-                <span className="detail-label">Duplicate Work</span>
-                <strong>중복 작업</strong>
-                {report.optimizationInsights.duplicateWork.length > 0 ? (
-                  <ul className="report-bullet-list">
-                    {report.optimizationInsights.duplicateWork.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>크게 보이는 중복 작업은 많지 않습니다.</p>
-                )}
-              </article>
-
-              <article className="report-card">
-                <span className="detail-label">Latency Risks</span>
-                <strong>지연 시간 위험</strong>
-                {report.optimizationInsights.latencyRisks.length > 0 ? (
-                  <ul className="report-bullet-list">
-                    {report.optimizationInsights.latencyRisks.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>눈에 띄는 직렬 병목은 적습니다.</p>
-                )}
-              </article>
-
-              <article className="report-card">
-                <span className="detail-label">Efficiency Tips</span>
-                <strong>효율화 팁</strong>
-                {report.optimizationInsights.efficiencyTips.length > 0 ? (
-                  <ul className="report-bullet-list">
-                    {report.optimizationInsights.efficiencyTips.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>현재 구조 기준으로 빠르게 적용할 효율화 팁은 제한적입니다.</p>
-                )}
-              </article>
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">CI Evaluation</p>
-                <h2>평가 관점별 점수</h2>
-              </div>
-            </div>
-
-            <div className="report-category-grid">
-              {report.categoryScores.map((category) => (
-                <article key={category.key} className={`report-category-card category-${category.key}`}>
-                  <div className="report-category-top">
-                    <strong>{category.label}</strong>
-                    <span className="badge">{category.score}점</span>
-                  </div>
-                  <div className="report-category-chip-row">
-                    <span className={`report-category-chip category-${category.key}`}>{category.label}</span>
-                  </div>
-                  <div className="report-progress-track">
-                    <div className="report-progress-fill" style={{ width: `${category.score}%` }} />
-                  </div>
-                  <p>{category.summary}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Review Lenses</p>
-                <h2>관점별 핵심 포인트</h2>
-              </div>
-            </div>
-
-            <div className="report-category-grid">
-              {report.reviewLenses.map((lens) => (
-                <article key={lens.key} className={`report-category-card report-lens-card category-${lens.key}`}>
-                  <div className="report-category-top">
-                    <strong>{lens.label}</strong>
-                    <span className="badge">{lens.findings.length} findings</span>
-                  </div>
-                  <div className="report-category-chip-row">
-                    <span className={`report-category-chip category-${lens.key}`}>{lens.label}</span>
-                  </div>
-                  <p>{lens.summary}</p>
-                  <ul className="report-bullet-list report-compact-list">
-                    {lens.findings.map((finding) => (
-                      <li key={finding.id}>
-                        <button
-                          className="report-inline-link"
-                          onClick={() => onSelectFinding(finding)}
-                          type="button"
-                        >
-                          {finding.summary}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Workflow Cards</p>
-                <h2>workflow별 빠른 스냅샷</h2>
-              </div>
-            </div>
-
-            <div className="report-workflow-grid">
-              {report.workflowCards.map((workflow) => (
-                <button
-                  key={workflow.fileName}
-                  className="report-workflow-card"
-                  onClick={() => onSelectWorkflow(workflow.fileName)}
-                  type="button"
-                >
-                  <div className="report-workflow-top">
-                    <div>
-                      <strong>{workflow.workflowName}</strong>
-                      <p className="issue-target">{workflow.fileName}</p>
-                    </div>
-                    <span className="badge">{workflow.phaseLabel}</span>
-                  </div>
-                  <div className="report-workflow-meta">
-                    <span>Trigger: {workflow.triggerSummary}</span>
-                    <span>Jobs: {workflow.jobCount}</span>
-                    <span>Risks: {workflow.riskCount}</span>
-                  </div>
-                  <p className="report-workflow-inline-meta">{workflow.estimatedDurationText}</p>
-                  <p className="report-workflow-inline-meta">{workflow.failureText}</p>
-                  <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
-                  <p>{workflow.headline}</p>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="report-section report-section-spacious">
-            <div className="panel-header">
-              <div>
                 <p className="eyebrow">Workflow Deep Dive</p>
                 <h2>workflow별 상세 분석</h2>
               </div>
@@ -487,7 +518,7 @@ export function ReviewReportPanel({
 
             <div className="report-deep-dive-list">
               {report.workflowDeepDives.map((workflow) => (
-                <article key={workflow.fileName} className="report-deep-dive-card">
+                <article key={workflow.filePath} className="report-deep-dive-card">
                   <div className="report-deep-dive-header">
                     <div>
                       <strong>{workflow.workflowName}</strong>
@@ -505,10 +536,18 @@ export function ReviewReportPanel({
                     </div>
                   </div>
 
-                  <div className="report-deep-dive-metrics">
+                  <div className="report-workflow-meta">
                     <span>{workflow.triggerSummary}</span>
                     <span>{workflow.estimatedDurationText}</span>
                     <span>{workflow.failureText}</span>
+                  </div>
+
+                  <div className="report-role-badges">
+                    {workflow.roles.map((role) => (
+                      <span key={`${workflow.filePath}-${role}`} className="report-role-badge">
+                        {role}
+                      </span>
+                    ))}
                   </div>
 
                   <p className="report-workflow-analysis">{workflow.analysisSummary}</p>
@@ -599,4 +638,37 @@ export function ReviewReportPanel({
       )}
     </section>
   );
+}
+
+function mapPhaseTone(phaseLabel: string) {
+  switch (phaseLabel) {
+    case '머지 이전':
+      return 'pre';
+    case '머지 이후':
+      return 'post';
+    default:
+      return 'manual';
+  }
+}
+
+function mapCoverageStatusLabel(status: 'good' | 'watch' | 'gap') {
+  switch (status) {
+    case 'good':
+      return '적합';
+    case 'watch':
+      return '검토';
+    default:
+      return '부족';
+  }
+}
+
+function mapFocusTone(focus: '중복 작업' | '지연 시간' | '효율화') {
+  switch (focus) {
+    case '중복 작업':
+      return 'duplication';
+    case '지연 시간':
+      return 'latency';
+    default:
+      return 'efficiency';
+  }
 }

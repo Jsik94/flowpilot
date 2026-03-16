@@ -3,6 +3,7 @@ import { parseWorkflowMeta } from './workflow-map';
 import type {
   AnalysisResult,
   BranchComparison,
+  CiReviewCategoryKey,
   CiReviewFinding,
   CiReviewReport,
   RepoInsight,
@@ -162,6 +163,11 @@ export function buildCiReviewReport({
   const reviewLenses = buildReviewLenses(dedupedFindings, categoryScores);
   const workflowDeepDives = buildWorkflowDeepDives(assessments, diagnostics, dedupedFindings);
   const priorityActions = buildPriorityActions(dedupedFindings, optimizationInsights);
+  const inventoryRows = buildWorkflowInventory(assessments, diagnostics, dedupedFindings);
+  const heatmapRows = buildWorkflowHeatmap(inventoryRows, dedupedFindings, categoryScores);
+  const flowLanes = buildFlowLanes(workflowMap, inventoryRows);
+  const optimizationRows = buildOptimizationRows(assessments, diagnostics, roleAnalysis);
+  const repoCoverageRows = buildRepoCoverageRows(repoInsight, assessments, roleAnalysis);
 
   return {
     headline: buildHeadline(score),
@@ -207,18 +213,26 @@ export function buildCiReviewReport({
     priorityActions,
     failureInsights,
     reviewLenses,
+    inventoryRows,
+    heatmapRows,
+    flowLanes,
+    optimizationRows,
+    repoCoverageRows,
     workflowCards: assessments
       .map((assessment) => {
         const diagnostic = diagnostics[assessment.preview.path];
+        const roles = classifyWorkflowRoles(assessment);
 
         return {
           workflowName: assessment.preview.workflowName,
           fileName: assessment.preview.fileName,
+          filePath: assessment.preview.path,
           triggerSummary:
             assessment.meta.triggers.length > 0
               ? assessment.meta.triggers.map(formatTrigger).join(', ')
               : 'trigger 정보 없음',
           phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+          roles,
           jobCount: assessment.graph.jobs.length,
           riskCount: assessment.findings.filter((finding) => finding.severity !== 'info').length,
           headline: buildWorkflowCardHeadline(assessment),
@@ -873,6 +887,315 @@ function buildReviewLenses(
     .filter((lens) => lens.findings.length > 0);
 }
 
+function buildWorkflowInventory(
+  assessments: WorkflowAssessment[],
+  diagnostics: Record<string, WorkflowDiagnostic>,
+  findings: CiReviewFinding[],
+): CiReviewReport['inventoryRows'] {
+  return assessments
+    .map((assessment) => {
+      const diagnostic = diagnostics[assessment.preview.path];
+      const relatedFindings = findings.filter(
+        (finding) =>
+          finding.filePath === assessment.preview.path ||
+          finding.workflowName === assessment.preview.workflowName,
+      );
+
+      return {
+        workflowName: assessment.preview.workflowName,
+        fileName: assessment.preview.fileName,
+        filePath: assessment.preview.path,
+        triggerSummary:
+          assessment.meta.triggers.length > 0
+            ? assessment.meta.triggers.map(formatTrigger).join(', ')
+            : 'trigger 정보 없음',
+        phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+        roles: classifyWorkflowRoles(assessment),
+        jobCount: assessment.graph.jobs.length,
+        riskCount: relatedFindings.filter((finding) => finding.severity !== 'info').length,
+        estimatedDurationText: formatEstimatedDurationText(diagnostic),
+        failureText: formatFailureText(diagnostic),
+      };
+    })
+    .sort((left, right) => {
+      if (right.riskCount !== left.riskCount) {
+        return right.riskCount - left.riskCount;
+      }
+
+      return left.workflowName.localeCompare(right.workflowName);
+    });
+}
+
+function buildWorkflowHeatmap(
+  inventoryRows: CiReviewReport['inventoryRows'],
+  findings: CiReviewFinding[],
+  categoryScores: CiReviewReport['categoryScores'],
+): CiReviewReport['heatmapRows'] {
+  return inventoryRows.map((row) => ({
+    workflowName: row.workflowName,
+    fileName: row.fileName,
+    filePath: row.filePath,
+    cells: categoryScores.map((category) => {
+      const related = findings.filter(
+        (finding) =>
+          finding.category === category.key &&
+          (finding.filePath === row.filePath || finding.workflowName === row.workflowName),
+      );
+
+      const level = resolveHeatmapLevel(related);
+
+      return {
+        key: category.key,
+        label: category.label,
+        count: related.length,
+        level,
+      };
+    }),
+  }));
+}
+
+function resolveHeatmapLevel(findings: CiReviewFinding[]) {
+  if (findings.some((finding) => finding.severity === 'critical')) {
+    return 'critical' as const;
+  }
+
+  if (findings.some((finding) => finding.severity === 'warning')) {
+    return 'warning' as const;
+  }
+
+  if (findings.some((finding) => finding.severity === 'info')) {
+    return 'info' as const;
+  }
+
+  return 'none' as const;
+}
+
+function buildFlowLanes(
+  workflowMap: WorkflowMap | null,
+  inventoryRows: CiReviewReport['inventoryRows'],
+): CiReviewReport['flowLanes'] {
+  const laneMap: Array<{ key: 'pre-merge' | 'post-merge' | 'manual'; label: string; description: string; phases: string[] }> = [
+    {
+      key: 'pre-merge',
+      label: '머지 이전',
+      description: 'PR, merge queue 단계에서 실패를 최대한 앞단에서 잡는 흐름입니다.',
+      phases: ['머지 이전'],
+    },
+    {
+      key: 'post-merge',
+      label: '머지 이후',
+      description: 'push, workflow_run, release 이후 후속 검증과 배포 파이프라인입니다.',
+      phases: ['머지 이후'],
+    },
+    {
+      key: 'manual',
+      label: '수동/기타',
+      description: '운영 점검, 수동 실행, 예약성 maintenance workflow입니다.',
+      phases: ['수동/기타'],
+    },
+  ];
+
+  return laneMap.map((lane) => ({
+    key: lane.key,
+    label: lane.label,
+    description: lane.description,
+    items: inventoryRows
+      .filter((row) => lane.phases.includes(row.phaseLabel))
+      .map((row) => {
+        const mapNode = workflowMap?.nodes.find((node) => node.id === row.filePath);
+        const dependencyCount = mapNode?.dependsOnWorkflowIds.length ?? 0;
+        const roleText = row.roles.slice(0, 2).join(', ');
+        const summaryParts = [roleText, row.estimatedDurationText];
+        if (dependencyCount > 0) {
+          summaryParts.push(`명시 의존 ${dependencyCount}`);
+        }
+
+        return {
+          workflowName: row.workflowName,
+          fileName: row.fileName,
+          summary: summaryParts.filter(Boolean).join(' · '),
+        };
+      }),
+  }));
+}
+
+function buildOptimizationRows(
+  assessments: WorkflowAssessment[],
+  diagnostics: Record<string, WorkflowDiagnostic>,
+  roleAnalysis: ReturnType<typeof analyzeWorkflowRoles>,
+): CiReviewReport['optimizationRows'] {
+  const rows: CiReviewReport['optimizationRows'] = [];
+
+  for (const overlap of roleAnalysis.overlaps.slice(0, 3)) {
+    rows.push({
+      id: `optimization-duplication-${overlap.role}`,
+      workflowName: overlap.workflows.join(', '),
+      focus: '중복 작업',
+      issue: `${overlap.role} 역할이 여러 workflow에 분산되어 있습니다.`,
+      evidence: overlap.summary,
+      recommendation: '공통 로직을 reusable workflow 또는 composite action으로 묶을 수 있는지 확인하세요.',
+      expectedImpact: '동일한 정책을 한 번에 수정할 수 있어 유지보수 비용과 drift를 줄일 수 있습니다.',
+    });
+  }
+
+  for (const assessment of assessments) {
+    if (!assessment.hasCache && /setup-node/i.test(assessment.preview.content)) {
+      rows.push({
+        id: `optimization-cache-${assessment.preview.fileName}`,
+        workflowName: assessment.preview.workflowName,
+        focus: '효율화',
+        issue: 'Node 의존성 캐시가 없어 설치 비용이 반복됩니다.',
+        evidence: `${assessment.preview.fileName}에서 setup-node는 보이지만 cache 설정은 보이지 않습니다.`,
+        recommendation: 'actions/setup-node의 cache 옵션 또는 actions/cache를 사용해 lockfile 기반 캐시를 적용하세요.',
+        expectedImpact: '반복 실행 시간과 runner 비용을 줄이고 PR 피드백 루프를 빠르게 만들 수 있습니다.',
+      });
+    }
+
+    if (assessment.hasFullySequentialFlow || assessment.longestChain >= 4) {
+      rows.push({
+        id: `optimization-latency-${assessment.preview.fileName}`,
+        workflowName: assessment.preview.workflowName,
+        focus: '지연 시간',
+        issue: `job 체인이 ${assessment.longestChain}단계로 이어져 전체 리드타임이 길어질 수 있습니다.`,
+        evidence: describeJobFlow(assessment),
+        recommendation: '독립 가능한 lint, test, build, packaging 단계를 분리해 병렬화 가능한 needs 구조로 조정하세요.',
+        expectedImpact: '같은 검증 범위를 유지하면서 전체 workflow 완료 시간을 줄일 수 있습니다.',
+      });
+    }
+
+    if (assessment.graph.jobs.length <= 1 && (assessment.graph.jobs[0]?.steps.length ?? 0) >= 7) {
+      rows.push({
+        id: `optimization-step-density-${assessment.preview.fileName}`,
+        workflowName: assessment.preview.workflowName,
+        focus: '지연 시간',
+        issue: '단일 job에 step이 과도하게 몰려 있어 병렬화 포인트가 가려져 있습니다.',
+        evidence: `${assessment.preview.fileName}의 대표 job이 step ${(assessment.graph.jobs[0]?.steps.length ?? 0)}개를 포함합니다.`,
+        recommendation: '검증 목적이 다른 step은 별도 job으로 승격해 실패 구간을 분리하고 병렬 실행 여지를 확보하세요.',
+        expectedImpact: '실패 원인 파악과 병렬화 설계가 쉬워지고, 대기 시간을 줄일 수 있습니다.',
+      });
+    }
+
+    const diagnostic = diagnostics[assessment.preview.path];
+    if (diagnostic?.failureCount && diagnostic.recurringFailedJobs.length > 0) {
+      rows.push({
+        id: `optimization-failure-${assessment.preview.fileName}`,
+        workflowName: assessment.preview.workflowName,
+        focus: '효율화',
+        issue: '같은 job이 반복 실패해 재시도 비용이 누적되고 있습니다.',
+        evidence: diagnostic.recurringFailedJobs
+          .slice(0, 2)
+          .map((failure) => `${failure.jobName}(${failure.count})`)
+          .join(', '),
+        recommendation: '반복 실패 job은 외부 의존성, flaky step, timeout, 캐시 적중률을 먼저 점검하세요.',
+        expectedImpact: '재실행 횟수와 디버깅 시간을 줄여 실제 개발자의 대기 시간을 줄일 수 있습니다.',
+      });
+    }
+  }
+
+  return dedupeOptimizationRows(rows).slice(0, 8);
+}
+
+function dedupeOptimizationRows(rows: CiReviewReport['optimizationRows']) {
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    const key = `${row.focus}:${row.workflowName ?? 'global'}:${row.issue}`;
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildRepoCoverageRows(
+  repoInsight: RepoInsight | null,
+  assessments: WorkflowAssessment[],
+  roleAnalysis: ReturnType<typeof analyzeWorkflowRoles>,
+): CiReviewReport['repoCoverageRows'] {
+  const rows: CiReviewReport['repoCoverageRows'] = [];
+  const frameworks = new Set(repoInsight?.frameworks ?? []);
+  const deploymentSignals = new Set(repoInsight?.deploymentSignals ?? []);
+  const hasPreMerge = assessments.some((assessment) => assessment.hasPreMergeTrigger);
+  const hasPostMerge = assessments.some((assessment) => assessment.hasPostMergeTrigger);
+  const hasManual = assessments.some((assessment) => assessment.hasManualTrigger);
+  const hasReleaseGuard = roleAnalysis.gaps.every((gap) => gap.role !== 'Release / Deploy Guard');
+  const hasNodeSignals = ['Node.js', 'React', 'Vite', 'NestJS', 'Next.js'].some((item) => frameworks.has(item));
+  const hasPythonSignals = frameworks.has('Python');
+  const hasInfraSignals = ['Terraform', 'Kubernetes', 'Docker'].some((item) => frameworks.has(item) || deploymentSignals.has(item));
+
+  rows.push({
+    area: '머지 이전 검증',
+    signal: hasPreMerge ? 'PR 계열 workflow 감지' : 'PR 계열 workflow 미감지',
+    expectation: 'pull_request 또는 merge queue 단계에서 핵심 검증이 앞단에 있어야 합니다.',
+    currentState: hasPreMerge ? '머지 이전 검증이 존재합니다.' : '검증이 머지 이후로 밀릴 가능성이 있습니다.',
+    status: hasPreMerge ? 'good' : 'gap',
+    note: hasPreMerge
+      ? '기본적인 pre-merge guard는 있는 상태입니다.'
+      : '브랜치 보호 규칙과 연결되는 검증 workflow를 추가하는 편이 좋습니다.',
+  });
+
+  if (hasNodeSignals) {
+    rows.push({
+      area: '애플리케이션 CI',
+      signal: `Node 계열 스택 감지: ${[...frameworks].filter((item) => ['Node.js', 'React', 'Vite', 'NestJS', 'Next.js'].includes(item)).join(', ')}`,
+      expectation: 'build, test, lint 흐름이 pre/post merge 양쪽에서 적절히 분산되어야 합니다.',
+      currentState: hasPreMerge && hasPostMerge ? '앞단 검증과 후속 파이프라인이 모두 보입니다.' : '앱 변경을 받는 CI 흐름이 한쪽으로 치우쳐 있습니다.',
+      status: hasPreMerge && hasPostMerge ? 'good' : 'watch',
+      note: '앱 코드 비중이 크면 캐시, 병렬화, flaky test 관리가 특히 중요합니다.',
+    });
+  }
+
+  if (hasPythonSignals) {
+    rows.push({
+      area: 'Python 검증',
+      signal: 'Python 관련 파일 또는 테스트 신호 감지',
+      expectation: 'Python job 또는 별도 검증 workflow가 있어야 테스트 대상이 누락되지 않습니다.',
+      currentState: assessments.some((assessment) => /python|pytest|poetry|pip/i.test(assessment.preview.content))
+        ? 'Python 관련 검증 흔적이 workflow에 반영되어 있습니다.'
+        : '레포 신호 대비 Python 검증 흔적은 약합니다.',
+      status: assessments.some((assessment) => /python|pytest|poetry|pip/i.test(assessment.preview.content)) ? 'good' : 'watch',
+      note: '복수 언어 레포라면 언어별 검증 범위를 명시적으로 분리하는 편이 좋습니다.',
+    });
+  }
+
+  if (hasInfraSignals) {
+    rows.push({
+      area: '배포/인프라 가드',
+      signal: [...new Set([...frameworks, ...deploymentSignals].filter((item) => ['Terraform', 'Kubernetes', 'Docker'].includes(item)))].join(', ') || '배포 신호 감지',
+      expectation: '배포/릴리스 workflow와 concurrency, 수동 승인 또는 manual dispatch가 보완되어야 합니다.',
+      currentState: hasReleaseGuard ? '배포/릴리스 역할을 맡는 workflow가 보입니다.' : '배포/릴리스 guard가 약하거나 부재합니다.',
+      status: hasReleaseGuard ? 'watch' : 'gap',
+      note: '배포성 workflow는 concurrency와 environment 보호 장치까지 함께 보는 편이 안전합니다.',
+    });
+  }
+
+  if (repoInsight?.monorepo) {
+    rows.push({
+      area: '모노레포 분할',
+      signal: `workspace ${repoInsight.workspaceRoots.length}개 감지`,
+      expectation: '경로 기반 분기나 역할 분리로 전체 레포 재검증 비용을 제어해야 합니다.',
+      currentState: assessments.length >= 3
+        ? 'workflow는 여러 개지만 경로 기반 분기 여부는 추가 검토가 필요합니다.'
+        : 'workflow 수가 적어 monorepo 전체를 하나로 검증할 가능성이 있습니다.',
+      status: assessments.length >= 3 ? 'watch' : 'gap',
+      note: 'workspace가 많을수록 path filter, reusable workflow, matrix 전략이 중요해집니다.',
+    });
+  }
+
+  rows.push({
+    area: '운영성 workflow',
+    signal: hasManual ? 'manual/schedule workflow 존재' : 'manual/schedule workflow 부재',
+    expectation: '운영 점검, 재실행, maintenance 성격의 workflow는 자동 파이프라인과 분리되는 편이 좋습니다.',
+    currentState: hasManual ? '운영성 workflow가 분리되어 있습니다.' : '운영 작업이 자동 workflow에 섞일 수 있습니다.',
+    status: hasManual ? 'good' : 'watch',
+    note: 'nightly check, data sync, maintenance workflow는 수동/예약 분리가 유리합니다.',
+  });
+
+  return rows;
+}
+
 function buildWorkflowDeepDives(
   assessments: WorkflowAssessment[],
   diagnostics: Record<string, WorkflowDiagnostic>,
@@ -890,11 +1213,13 @@ function buildWorkflowDeepDives(
       return {
         workflowName: assessment.preview.workflowName,
         fileName: assessment.preview.fileName,
+        filePath: assessment.preview.path,
         triggerSummary:
           assessment.meta.triggers.length > 0
             ? assessment.meta.triggers.map(formatTrigger).join(', ')
             : 'trigger 정보 없음',
         phaseLabel: mapPhaseLabel(assessment.meta.triggers),
+        roles: classifyWorkflowRoles(assessment),
         headline: buildWorkflowCardHeadline(assessment),
         estimatedDurationText: formatEstimatedDurationText(diagnostic),
         failureText: formatFailureText(diagnostic),

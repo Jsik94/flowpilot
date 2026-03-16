@@ -208,6 +208,15 @@ export type CiReviewFinding = {
   recommendation: string;
 };
 
+export type CiReviewCategoryKey =
+  | 'security'
+  | 'reliability'
+  | 'performance'
+  | 'maintainability'
+  | 'coverage'
+  | 'duplication'
+  | 'latency';
+
 export type CiReviewReport = {
   headline: string;
   summary: string;
@@ -231,14 +240,7 @@ export type CiReviewReport = {
   watchouts: string[];
   quickWins: string[];
   categoryScores: Array<{
-    key:
-      | 'security'
-      | 'reliability'
-      | 'performance'
-      | 'maintainability'
-      | 'coverage'
-      | 'duplication'
-      | 'latency';
+    key: CiReviewCategoryKey;
     label: string;
     score: number;
     summary: string;
@@ -293,23 +295,68 @@ export type CiReviewReport = {
     }>;
   };
   reviewLenses: Array<{
-    key:
-      | 'security'
-      | 'reliability'
-      | 'performance'
-      | 'maintainability'
-      | 'coverage'
-      | 'duplication'
-      | 'latency';
+    key: CiReviewCategoryKey;
     label: string;
     summary: string;
     findings: CiReviewFinding[];
   }>;
+  inventoryRows: Array<{
+    workflowName: string;
+    fileName: string;
+    filePath: string;
+    triggerSummary: string;
+    phaseLabel: string;
+    roles: string[];
+    jobCount: number;
+    riskCount: number;
+    estimatedDurationText: string;
+    failureText: string;
+  }>;
+  heatmapRows: Array<{
+    workflowName: string;
+    fileName: string;
+    filePath: string;
+    cells: Array<{
+      key: CiReviewCategoryKey;
+      label: string;
+      count: number;
+      level: 'none' | 'info' | 'warning' | 'critical';
+    }>;
+  }>;
+  flowLanes: Array<{
+    key: 'pre-merge' | 'post-merge' | 'manual';
+    label: string;
+    description: string;
+    items: Array<{
+      workflowName: string;
+      fileName: string;
+      summary: string;
+    }>;
+  }>;
+  optimizationRows: Array<{
+    id: string;
+    workflowName?: string;
+    focus: '중복 작업' | '지연 시간' | '효율화';
+    issue: string;
+    evidence: string;
+    recommendation: string;
+    expectedImpact: string;
+  }>;
+  repoCoverageRows: Array<{
+    area: string;
+    signal: string;
+    expectation: string;
+    currentState: string;
+    status: 'good' | 'watch' | 'gap';
+    note: string;
+  }>;
   workflowCards: Array<{
     workflowName: string;
     fileName: string;
+    filePath: string;
     triggerSummary: string;
     phaseLabel: string;
+    roles: string[];
     jobCount: number;
     riskCount: number;
     headline: string;
@@ -320,8 +367,10 @@ export type CiReviewReport = {
   workflowDeepDives: Array<{
     workflowName: string;
     fileName: string;
+    filePath: string;
     triggerSummary: string;
     phaseLabel: string;
+    roles: string[];
     headline: string;
     estimatedDurationText: string;
     failureText: string;
