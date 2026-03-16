@@ -91,7 +91,21 @@ pnpm docker:stop     # compose down
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+환경변수 파일이 3개 있습니다. **실행 방식에 따라 수정할 파일이 다릅니다.**
+
+| 실행 방식 | 수정할 파일 | 설명 |
+|-----------|------------|------|
+| `pnpm dev:start` (로컬 개발) | `frontend/.env` + `backend/.env` | 각 서비스가 자기 `.env`를 직접 읽음 |
+| `docker compose` (Docker 배포) | 루트 `.env` | docker-compose.yml이 루트 `.env`를 읽어 컨테이너에 주입 |
+
+### 로컬 개발: `frontend/.env` + `backend/.env`
+
+```bash
+cp frontend/.env.example frontend/.env
+cp backend/.env.example backend/.env
+```
+
+**`backend/.env`**
 
 | 변수 | 설명 | 기본값 |
 |------|------|--------|
@@ -99,14 +113,33 @@ pnpm docker:stop     # compose down
 | `FRONTEND_URL` | CORS 허용 origin | `http://localhost:5173` |
 | `GEMINI_API_KEY` | Gemini 분석 키 (없으면 휴리스틱만 사용) | — |
 
-### Frontend (`frontend/.env`)
+**`frontend/.env`**
 
 | 변수 | 설명 | 기본값 |
 |------|------|--------|
 | `PORT` | Dev 서버 포트 | `5173` |
-| `VITE_API_URL` | Backend URL (Docker에서는 비워둠) | `http://localhost:3001` |
+| `VITE_API_URL` | Backend URL | `http://localhost:3001` |
 
-`pnpm dev:start` / `pnpm dev:stop` 는 각 서비스의 `.env`를 우선 읽고, 파일이 없으면 `.env.example`을 기본값으로 사용합니다.
+`.env`가 없으면 `.env.example` 값을 기본값으로 사용합니다.
+
+### Docker 배포: 루트 `.env`
+
+```bash
+cp .env.example .env
+```
+
+**`.env`**
+
+| 변수 | 설명 | 기본값 |
+|------|------|--------|
+| `FRONTEND_PORT` | 외부 노출 포트 (브라우저 접속용) | `8080` |
+| `BACKEND_PORT` | API 서버 포트 | `3001` |
+| `FRONTEND_URL` | CORS 허용 origin | `http://localhost:8080` |
+| `VITE_API_URL` | Frontend → Backend 경로 (nginx 프록시 시 `/api`) | `/api` |
+| `GEMINI_API_KEY` | Gemini 분석 키 | — |
+| `GEMINI_MODEL` | Gemini 모델명 | `gemini-2.5-flash` |
+
+> **주의**: `VITE_API_URL`은 빌드 타임에 번들에 박히므로, 변경 후 `docker compose up -d --build`로 재빌드해야 반영됩니다.
 
 ---
 
