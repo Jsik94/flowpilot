@@ -15,7 +15,7 @@ FlowPilot는 아래 흐름으로 사용합니다.
 4. 브랜치를 선택한다.
 5. workflow map에서 전체 흐름을 본다.
 6. 특정 workflow를 눌러 Job Graph, Run History, Workflow Source를 확인한다.
-7. 아래 리포트에서 CI 관점의 문제점과 개선 포인트를 읽는다.
+7. 아래 리포트에서 시각 대시보드와 CI 관점의 문제점, 최적화 포인트를 읽는다.
 
 ## 3. 설치
 
@@ -115,6 +115,7 @@ pnpm docker:stop
 
 - 브랜치 전체 workflow 흐름을 봅니다.
 - `전체`, `머지 이전`, `머지 이후`, `수동/기타` 필터로 분기해서 볼 수 있습니다.
+- 실선은 명시된 연결이고, 점선은 이름/trigger/branch rule을 바탕으로 추론한 흐름입니다.
 
 ### 7.3 Detail Drawer
 
@@ -129,8 +130,13 @@ workflow를 선택하면 드로어가 열립니다.
 
 맵 아래의 리포트는 구조 요약이 아니라 실제 CI 리뷰 문서입니다.
 
+- 상단 `Phase Distribution`, `Workflow Risk Matrix` 시각 대시보드
+- `Workflow Inventory` 표
+- `Category Heatmap`
+- `Repository Coverage Matrix`
+- `Optimization Table`
 - 우선순위 액션
-- 카테고리별 평가
+- 카테고리별 평가와 heatmap
 - workflow별 상세
 - source 연결 finding
 

@@ -113,7 +113,7 @@ backlog는 아래 4개 상태로 관리한다.
 작업:
 
 1. Repo URL 파서 구현
-2. PAT/sessionStorage 처리
+2. PAT 메모리 보관 처리 및 public/private 전환 UX
 3. GitHub repo 확인 API 연동
 4. workflow 목록 조회
 5. 첫 workflow 내용 fetch

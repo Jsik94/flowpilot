@@ -213,17 +213,18 @@ type AppStore = {
 
 PAT가 비어 있으면 Authorization 헤더 없이 요청한다.
 
-### 4.7 세션 저장 전략
+### 4.7 인증 상태 보관 전략
 
-sessionStorage 키:
+현재 원칙:
 
-- `fp.username`
-- `fp.pat`
-- `fp.lastRepoUrl`
+- `PAT`는 브라우저 메모리에서만 유지한다.
+- `sessionStorage`, `localStorage`에 토큰을 저장하지 않는다.
+- public/private 전환과 현재 입력값은 런타임 상태로만 관리한다.
 
 보안 원칙:
 
-- 앱 시작 시 세션 데이터 복원 가능
+- 새로고침 시 PAT는 복원되지 않는다.
+- 서버는 PAT를 저장하지 않는다.
 - 새 탭/브라우저 종료 후 사라지는 것을 기본 동작으로 둔다
 - localStorage는 쓰지 않는다
 

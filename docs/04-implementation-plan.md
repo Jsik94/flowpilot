@@ -53,7 +53,7 @@
 작업:
 
 1. URL 파서 작성
-2. sessionStorage 연동
+2. PAT 메모리 관리 및 public/private 전환 UX
 3. repo 확인 API
 4. workflow 목록 API
 5. workflow 파일 내용 fetch

@@ -240,7 +240,7 @@ MVP 완료 기준:
 
 ### 5.2 보안
 
-- PAT는 sessionStorage에만 저장한다.
+- PAT는 브라우저 메모리에서만 유지하고, sessionStorage/localStorage에 저장하지 않는다.
 - Gemini API 키는 백엔드 환경 변수에만 둔다.
 - 서버는 PAT를 저장하지 않는다.
 

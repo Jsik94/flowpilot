@@ -106,6 +106,8 @@ frontend/src/
 
 - 브랜치 전체 workflow map 렌더링
 - `전체 / 머지 이전 / 머지 이후 / 수동/기타` 필터
+- 명시 관계와 추론 흐름 구분
+- edge hover reason / confidence 제공
 - node click 시 workflow 선택
 
 ### 6.3 GraphCanvas
@@ -144,6 +146,7 @@ frontend/src/
 역할:
 
 - 브랜치 단위 CI 리뷰 리포트 렌더링
+- phase distribution, risk matrix, heatmap, coverage matrix 등 시각 대시보드 렌더링
 - finding 클릭 시 source focus 연결
 - HTML export 트리거
 
@@ -185,7 +188,7 @@ frontend/src/
 
 - workflow 메타 파싱
 - `workflow_run` 기반 strong edge 생성
-- trigger/branch rule 기반 weak edge 생성
+- trigger/branch rule/intent tag 기반 inferred weak edge 생성
 - phase 분류
 
 ### 7.4 Repo Insight / Review
@@ -198,6 +201,7 @@ frontend/src/
 - 레포 구조 신호 스캔
 - 브랜치 비교
 - category score 계산
+- inventory / heatmap / flow lane / coverage matrix / optimization table 생성
 - finding / workflow deep dive / optimization insight 생성
 - HTML export 문자열 생성
 
@@ -210,6 +214,11 @@ frontend/src/
 
 - backend `/api/analyze`
 - backend `/api/recommend`
+
+참고:
+
+- 현재 메인 UI는 `analyze` 기반 리뷰 리포트를 중심으로 사용합니다.
+- `recommend` 클라이언트와 backend endpoint는 확장 포인트로 유지되지만 기본 화면에서는 노출하지 않습니다.
 
 현재 기본 API base URL은 same-origin 입니다.
 즉 local dev가 아니면 reverse proxy 구성이 있는 환경을 우선 가정합니다.
@@ -227,7 +236,7 @@ frontend/src/
 7. `buildWorkflowMap`
 8. branch diagnostics 비동기 분석
 9. workflow 선택 시 `buildWorkflowGraph` + run history 로딩
-10. review report / drawer summary 조합
+10. review report, visual dashboard, drawer summary 조합
 
 ## 9. 스타일 구조
 
