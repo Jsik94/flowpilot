@@ -6,6 +6,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_DIR="$ROOT_DIR/.flowpilot"
 PID_DIR="$RUNTIME_DIR/pids"
 LOG_DIR="$RUNTIME_DIR/logs"
+source "$ROOT_DIR/scripts/dev-env.sh"
+
+FRONTEND_ENV_FILE="$(resolve_env_file "$ROOT_DIR/frontend")"
+BACKEND_ENV_FILE="$(resolve_env_file "$ROOT_DIR/backend")"
+FRONTEND_PORT="$(read_env_value "$FRONTEND_ENV_FILE" "PORT" "5173")"
+BACKEND_PORT="$(read_env_value "$BACKEND_ENV_FILE" "PORT" "3001")"
 
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
@@ -45,12 +51,15 @@ start_service() {
   echo "started $name (pid: $pid)"
 }
 
-ensure_port_free "frontend" 5173
-ensure_port_free "backend" 3001
+ensure_port_free "frontend" "$FRONTEND_PORT"
+ensure_port_free "backend" "$BACKEND_PORT"
 
 start_service "frontend" "pnpm --filter frontend dev"
 start_service "backend" "pnpm --filter backend dev"
 
+echo "ports:"
+echo "  frontend -> http://localhost:$FRONTEND_PORT"
+echo "  backend  -> http://localhost:$BACKEND_PORT"
 echo "logs:"
 echo "  frontend -> $LOG_DIR/frontend.log"
 echo "  backend  -> $LOG_DIR/backend.log"

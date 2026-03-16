@@ -108,15 +108,20 @@ cp frontend/.env.example frontend/.env
 기본 예시:
 
 ```env
+PORT=5173
 VITE_API_URL=http://localhost:3001
 ```
 
 설명:
 
+- `PORT`
+  frontend dev server 포트입니다.
 - `VITE_API_URL`
   frontend가 호출할 backend 주소입니다.
 - 로컬 개발에서는 보통 `http://localhost:3001`
 - Docker/nginx reverse proxy 환경에서는 비워 두거나 `/api` 기반 same-origin 구성을 사용합니다.
+
+로컬 `pnpm dev:start` / `pnpm dev:stop`는 각 서비스의 `.env`를 우선 읽고, 파일이 없으면 `.env.example` 값을 기본값으로 사용합니다.
 
 ### 3. Docker 실행 시
 
@@ -151,8 +156,8 @@ pnpm dev:stop
 
 기본 주소:
 
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:3001`
+- Frontend: `frontend/.env`의 `PORT` 값, 없으면 `5173`
+- Backend: `backend/.env`의 `PORT` 값, 없으면 `3001`
 
 로그:
 

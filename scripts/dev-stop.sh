@@ -4,6 +4,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PID_DIR="$ROOT_DIR/.flowpilot/pids"
+source "$ROOT_DIR/scripts/dev-env.sh"
+
+FRONTEND_ENV_FILE="$(resolve_env_file "$ROOT_DIR/frontend")"
+BACKEND_ENV_FILE="$(resolve_env_file "$ROOT_DIR/backend")"
+FRONTEND_PORT="$(read_env_value "$FRONTEND_ENV_FILE" "PORT" "5173")"
+BACKEND_PORT="$(read_env_value "$BACKEND_ENV_FILE" "PORT" "3001")"
 
 stop_service() {
   local name="$1"
@@ -48,5 +54,5 @@ stop_port_listener() {
 
 stop_service "frontend"
 stop_service "backend"
-stop_port_listener "frontend" 5173
-stop_port_listener "backend" 3001
+stop_port_listener "frontend" "$FRONTEND_PORT"
+stop_port_listener "backend" "$BACKEND_PORT"
