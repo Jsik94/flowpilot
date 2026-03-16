@@ -69,13 +69,12 @@ jobs:
     map.nodes.find((node) => node.fileName === 'deploy.yml')?.phaseLabel,
     'Pipeline',
   );
-  assert.deepEqual(map.edges, [
-    {
-      from: '.github/workflows/ci.yml',
-      to: '.github/workflows/deploy.yml',
-      kind: 'strong',
-    },
-  ]);
+  assert.equal(map.edges.length, 1);
+  assert.equal(map.edges[0]?.from, '.github/workflows/ci.yml');
+  assert.equal(map.edges[0]?.to, '.github/workflows/deploy.yml');
+  assert.equal(map.edges[0]?.kind, 'strong');
+  assert.equal(map.edges[0]?.reason, 'workflow_run 또는 workflow_call로 명시 연결');
+  assert.equal(map.edges[0]?.confidence, 1);
   assert.equal(
     map.nodes.find((node) => node.fileName === 'deploy.yml')?.level,
     1,
@@ -151,13 +150,12 @@ jobs:
   ]);
 
   assert.equal(map.strongEdges.length, 0);
-  assert.deepEqual(map.weakEdges, [
-    {
-      from: '.github/workflows/ci.yml',
-      to: '.github/workflows/lint.yml',
-      kind: 'weak',
-    },
-  ]);
+  assert.equal(map.weakEdges.length, 1);
+  assert.equal(map.weakEdges[0]?.from, '.github/workflows/ci.yml');
+  assert.equal(map.weakEdges[0]?.to, '.github/workflows/lint.yml');
+  assert.equal(map.weakEdges[0]?.kind, 'weak');
+  assert.match(map.weakEdges[0]?.reason ?? '', /공통 trigger|같은 branch rule|공통 목적/);
+  assert.equal(typeof map.weakEdges[0]?.confidence, 'number');
 });
 
 test('buildWorkflowMap infers weak edges across pre-merge and post-merge workflows with shared branch target', () => {
@@ -200,11 +198,10 @@ jobs:
     },
   ]);
 
-  assert.deepEqual(map.weakEdges, [
-    {
-      from: '.github/workflows/build-pr.yml',
-      to: '.github/workflows/build-main.yml',
-      kind: 'weak',
-    },
-  ]);
+  assert.equal(map.weakEdges.length, 1);
+  assert.equal(map.weakEdges[0]?.from, '.github/workflows/build-pr.yml');
+  assert.equal(map.weakEdges[0]?.to, '.github/workflows/build-main.yml');
+  assert.equal(map.weakEdges[0]?.kind, 'weak');
+  assert.match(map.weakEdges[0]?.reason ?? '', /phase 흐름|branch target|공통 목적/);
+  assert.ok((map.weakEdges[0]?.confidence ?? 0) >= 0.5);
 });

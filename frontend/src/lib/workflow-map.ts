@@ -22,6 +22,7 @@ export function buildWorkflowMap(previews: WorkflowPreview[]) {
     workflowName: meta.workflowName,
     triggers: meta.triggers,
     branchRules: meta.branchRules,
+    intentTags: extractWorkflowIntentTags(preview),
     primaryTrigger: getPrimaryTrigger(meta.triggers),
     ...getWorkflowPhase(meta.triggers),
     level: 0,
@@ -36,6 +37,8 @@ export function buildWorkflowMap(previews: WorkflowPreview[]) {
       from: dependencyId,
       to: node.id,
       kind: 'strong' as const,
+      reason: 'workflow_run 또는 workflow_call로 명시 연결',
+      confidence: 1,
     })),
   );
   const weakEdges = buildWeakEdges(nodes, strongEdges);
@@ -244,7 +247,9 @@ function assignLevels(nodes: WorkflowMapNode[]) {
 function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
   const strongEdgeKeys = new Set(strongEdges.map((edge) => toEdgeKey(edge.from, edge.to)));
   const seenEdgeKeys = new Set(strongEdgeKeys);
-  const weakEdges: GraphEdge[] = [];
+  const candidates: GraphEdge[] = [];
+  const outgoingCounts = new Map<string, number>();
+  const incomingCounts = new Map<string, number>();
 
   for (let index = 0; index < nodes.length; index += 1) {
     for (let nextIndex = index + 1; nextIndex < nodes.length; nextIndex += 1) {
@@ -255,16 +260,9 @@ function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
         continue;
       }
 
-      const sharesTrigger = left.triggers.some((trigger) => right.triggers.includes(trigger));
-      const sharesBranchRule = left.branchRules.some((rule) => right.branchRules.includes(rule));
-      const sharesBranchTarget = hasSharedBranchTarget(left.branchRules, right.branchRules);
-      const relatedIntent = hasRelatedWorkflowIntent(left, right);
-      const sequentialPhase = hasSequentialPhaseFlow(left, right);
+      const analysis = analyzeInferredRelationship(left, right);
 
-      if (
-        !(sharesTrigger && sharesBranchRule) &&
-        !(sharesBranchTarget && relatedIntent && sequentialPhase)
-      ) {
+      if (!analysis) {
         continue;
       }
 
@@ -276,15 +274,103 @@ function buildWeakEdges(nodes: WorkflowMapNode[], strongEdges: GraphEdge[]) {
       }
 
       seenEdgeKeys.add(directionalKey);
-      weakEdges.push({
+      candidates.push({
         from,
         to,
         kind: 'weak',
+        reason: analysis.reason,
+        confidence: analysis.confidence,
       });
     }
   }
 
+  candidates.sort((left, right) => {
+    const confidenceGap = (right.confidence ?? 0) - (left.confidence ?? 0);
+    if (confidenceGap !== 0) {
+      return confidenceGap;
+    }
+
+    return toEdgeKey(left.from, left.to).localeCompare(toEdgeKey(right.from, right.to));
+  });
+
+  const weakEdges: GraphEdge[] = [];
+
+  for (const candidate of candidates) {
+    const outgoing = outgoingCounts.get(candidate.from) ?? 0;
+    const incoming = incomingCounts.get(candidate.to) ?? 0;
+
+    if (outgoing >= 2 || incoming >= 2) {
+      continue;
+    }
+
+    weakEdges.push(candidate);
+    outgoingCounts.set(candidate.from, outgoing + 1);
+    incomingCounts.set(candidate.to, incoming + 1);
+  }
+
   return weakEdges;
+}
+
+function analyzeInferredRelationship(left: WorkflowMapNode, right: WorkflowMapNode) {
+  const reasons: string[] = [];
+  let score = 0;
+
+  const sharedTriggers = left.triggers.filter((trigger) => right.triggers.includes(trigger));
+  const sharedBranchRules = left.branchRules.filter((rule) => right.branchRules.includes(rule));
+  const sharedBranchTargets = findSharedBranchTargets(left.branchRules, right.branchRules);
+  const sharedIntentTags = left.intentTags.filter((tag) => right.intentTags.includes(tag));
+  const sequentialPhase = hasSequentialPhaseFlow(left, right);
+  const roleTransition = hasSequentialIntentFlow(left.intentTags, right.intentTags);
+
+  if (sharedTriggers.length > 0) {
+    score += 2;
+    reasons.push(`공통 trigger: ${sharedTriggers.slice(0, 2).join(', ')}`);
+  }
+
+  if (sharedBranchRules.length > 0) {
+    score += 3;
+    reasons.push(`같은 branch rule: ${sharedBranchRules.slice(0, 1).join(', ')}`);
+  }
+
+  if (sharedBranchTargets.length > 0) {
+    score += 2;
+    reasons.push(`같은 branch target: ${sharedBranchTargets.slice(0, 2).join(', ')}`);
+  }
+
+  if (sequentialPhase) {
+    score += 2;
+    reasons.push(`phase 흐름: ${left.phaseLabel} -> ${right.phaseLabel}`);
+  }
+
+  if (sharedIntentTags.length > 0) {
+    score += 3;
+    reasons.push(`공통 목적: ${sharedIntentTags.slice(0, 2).join(', ')}`);
+  }
+
+  if (roleTransition) {
+    score += 4;
+    reasons.push('검증/빌드 이후 배포·운영 흐름으로 추론');
+  }
+
+  const shouldConnect =
+    score >= 6 &&
+    (
+      (sharedTriggers.length > 0 && sharedBranchRules.length > 0) ||
+      (sharedBranchTargets.length > 0 && sequentialPhase) ||
+      roleTransition ||
+      (sharedIntentTags.length > 0 && sequentialPhase)
+    );
+
+  if (!shouldConnect) {
+    return null;
+  }
+
+  const confidence = Math.min(0.95, Number((score / 12).toFixed(2)));
+
+  return {
+    reason: reasons.join(' · '),
+    confidence,
+  };
 }
 
 function getDirectionalPair(left: WorkflowMapNode, right: WorkflowMapNode) {
@@ -301,11 +387,11 @@ function getDirectionalPair(left: WorkflowMapNode, right: WorkflowMapNode) {
     : [right.id, left.id];
 }
 
-function hasSharedBranchTarget(leftRules: string[], rightRules: string[]) {
+function findSharedBranchTargets(leftRules: string[], rightRules: string[]) {
   const leftBranches = new Set(leftRules.map(extractBranchTarget).filter(Boolean));
   const rightBranches = new Set(rightRules.map(extractBranchTarget).filter(Boolean));
 
-  return [...leftBranches].some((branch) => rightBranches.has(branch));
+  return [...leftBranches].filter((branch) => rightBranches.has(branch));
 }
 
 function extractBranchTarget(rule: string) {
@@ -329,21 +415,38 @@ function hasSequentialPhaseFlow(left: WorkflowMapNode, right: WorkflowMapNode) {
   );
 }
 
-function hasRelatedWorkflowIntent(left: WorkflowMapNode, right: WorkflowMapNode) {
-  const leftTokens = extractIntentTokens(`${left.workflowName} ${left.fileName}`);
-  const rightTokens = extractIntentTokens(`${right.workflowName} ${right.fileName}`);
+function extractWorkflowIntentTags(preview: WorkflowPreview) {
+  const source = `${preview.workflowName} ${preview.fileName} ${preview.content}`.toLowerCase();
+  const tags = new Set<string>();
 
-  return [...leftTokens].some((token) => rightTokens.has(token));
+  for (const [tag, keywords] of Object.entries(WORKFLOW_INTENT_KEYWORDS)) {
+    if (keywords.some((keyword) => source.includes(keyword))) {
+      tags.add(tag);
+    }
+  }
+
+  const genericTokens = source
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 3)
+    .filter((token) => !GENERIC_WORKFLOW_TOKENS.has(token))
+    .slice(0, 24);
+
+  for (const token of genericTokens) {
+    tags.add(token);
+  }
+
+  return [...tags];
 }
 
-function extractIntentTokens(value: string) {
-  return new Set(
-    value
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((token) => token.length >= 3)
-      .filter((token) => !GENERIC_WORKFLOW_TOKENS.has(token)),
-  );
+function hasSequentialIntentFlow(fromTags: string[], toTags: string[]) {
+  const from = new Set(fromTags);
+  const to = new Set(toTags);
+
+  return INTENT_FLOW_PAIRS.some(([fromGroup, toGroup]) => {
+    const fromMatches = fromGroup.some((tag) => from.has(tag));
+    const toMatches = toGroup.some((tag) => to.has(tag));
+    return fromMatches && toMatches;
+  });
 }
 
 const GENERIC_WORKFLOW_TOKENS = new Set([
@@ -362,6 +465,26 @@ const GENERIC_WORKFLOW_TOKENS = new Set([
   'yaml',
   'ci',
 ]);
+
+const WORKFLOW_INTENT_KEYWORDS: Record<string, string[]> = {
+  review: ['pull_request', 'review', 'pr'],
+  build: ['build', 'compile', 'package'],
+  test: ['test', 'unit', 'integration', 'e2e', 'vitest', 'jest'],
+  quality: ['lint', 'quality', 'validate', 'validation', 'schema', 'check', 'checks'],
+  release: ['release', 'publish', 'tag'],
+  deploy: ['deploy', 'delivery', 'rollout', 'promotion'],
+  docs: ['docs', 'documentation', 'index'],
+  sync: ['sync', 'backmerge', 'label', 'labels'],
+  infra: ['terraform', 'helm', 'kubernetes', 'docker'],
+  security: ['security', 'codeql', 'scan', 'sast', 'secret'],
+  notify: ['notify', 'notification', 'slack', 'discord'],
+};
+
+const INTENT_FLOW_PAIRS: Array<[string[], string[]]> = [
+  [['review', 'quality', 'test', 'build', 'security'], ['build', 'release', 'deploy']],
+  [['build', 'quality', 'infra'], ['release', 'deploy', 'notify']],
+  [['release', 'deploy'], ['sync', 'notify', 'docs']],
+];
 
 function toEdgeKey(from: string, to: string) {
   return `${from}::${to}`;

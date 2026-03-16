@@ -153,7 +153,9 @@ export function WorkflowMapPanel({
         <div>
           <p className="eyebrow">Workflow Map</p>
           <h2>브랜치 전체 흐름</h2>
-          <p className="map-panel-subtitle">현재 워크플로우를 시각화한 예시입니다.</p>
+          <p className="map-panel-subtitle">
+            명시된 의존관계와 이름, trigger, branch rule을 바탕으로 추론한 흐름을 함께 보여줍니다.
+          </p>
         </div>
         <div className="map-panel-actions">
           {map ? (
@@ -194,6 +196,16 @@ export function WorkflowMapPanel({
           <span className="legend-dot legend-manual-dot" /> 수동/기타
         </button>
       </div>
+      <div className="map-relation-legend" aria-label="workflow edge legend">
+        <span className="relation-chip">
+          <span className="relation-line relation-line-strong" />
+          명시 관계
+        </span>
+        <span className="relation-chip">
+          <span className="relation-line relation-line-weak" />
+          추론 흐름
+        </span>
+      </div>
 
       {loading ? <p className="empty-state">브랜치 기준으로 워크플로우를 스캔하는 중입니다.</p> : null}
       {!loading && !map ? (
@@ -217,6 +229,17 @@ export function WorkflowMapPanel({
                 ? 'rgba(143, 184, 255, 0.18)'
                 : 'rgba(91, 209, 165, 0.42)'
             }
+            linkLabel={(link) => {
+              const workflowLink = link as ForceLink;
+              const kindLabel = workflowLink.kind === 'weak' ? '추론 흐름' : '명시 관계';
+              const confidenceLabel =
+                workflowLink.kind === 'weak' && workflowLink.confidence != null
+                  ? `신뢰도 ${(workflowLink.confidence * 100).toFixed(0)}%`
+                  : null;
+
+              return [kindLabel, workflowLink.reason, confidenceLabel].filter(Boolean).join('\n');
+            }}
+            linkLineDash={(link) => ((link as ForceLink).kind === 'weak' ? [5, 5] : null)}
             linkDirectionalParticles={(link) => ((link as ForceLink).kind === 'strong' ? 2 : 0)}
             linkDirectionalParticleColor={() => 'rgba(91, 209, 165, 0.7)'}
             linkDirectionalParticleWidth={2}

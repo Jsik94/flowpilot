@@ -57,6 +57,8 @@ export type GraphEdge = {
   from: string;
   to: string;
   kind?: 'strong' | 'weak';
+  reason?: string;
+  confidence?: number;
 };
 
 export type WorkflowStep = {
@@ -89,6 +91,7 @@ export type WorkflowMapNode = {
   workflowName: string;
   triggers: string[];
   branchRules: string[];
+  intentTags: string[];
   primaryTrigger: string;
   phaseLabel: string;
   phaseOrder: number;
